@@ -3,7 +3,39 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 import numpy as np
 import os
+# Reemplaza esta URL con la URL "Raw" de tu archivo model.h5
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/tu_usuario/tu_repositorio/main/model.h5"
 
+@st.cache_resource
+def load_model_from_github():
+    """Descarga y carga el modelo desde GitHub usando la URL raw."""
+    try:
+        # Descarga el archivo .h5 en memoria
+        response = requests.get(GITHUB_RAW_URL)
+        response.raise_for_status() # Lanza un error si la descarga falla
+        
+        # Carga el modelo directamente desde los bytes en memoria
+        model = tf.keras.models.load_model(io.BytesIO(response.content))
+        return model
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error al descargar el archivo desde GitHub: {e}")
+        return None
+    except Exception as e:
+        st.error(f"Error al cargar el modelo .h5: {e}")
+        return None
+
+# ----- Inicia tu aplicación Streamlit -----
+st.title("Carga de Modelo desde GitHub")
+
+# Carga el modelo (la función solo se ejecutará una vez gracias a st.cache_resource)
+model = load_model_from_github()
+
+if model is not None:
+    st.success("¡Modelo cargado con éxito!")
+    # Aquí puedes usar tu modelo para hacer predicciones
+    # Ejemplo: prediction = model.predict(your_data)
+else:
+    st.warning("No se pudo cargar el modelo. Revisa la URL y tu conexión.")
 # 1. Crear una carpeta para guardar los modelos si no existe
 models_dir = 'models'
 if not os.path.exists(models_dir):
@@ -57,4 +89,5 @@ print("Ahora puedes cargar este archivo en tu backend para usar el modelo sin re
 # Opcional: Cargar el modelo para verificar que se guardó correctamente
 # loaded_model = tf.keras.models.load_model(model_save_path)
 # print("\nModelo cargado para verificación:")
+
 # loaded_model.summary()
