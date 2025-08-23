@@ -19,49 +19,36 @@ st.set_page_config(
 
 # Custom theme with JavaScript and updated CSS classes
 custom_theme_script = """
-<script>
-    function applyCustomTheme() {
-        // Apply dark theme to the main Streamlit container
-        var mainContainer = window.parent.document.querySelector('.stApp');
-        if (mainContainer) {
-            mainContainer.style.backgroundColor = '#0E1117';
-            mainContainer.style.color = '#FAFAFA';
-        }
-
-        // Apply dark theme to the sidebar
-        var sidebar = window.parent.document.querySelector('.st-emotion-cache-1cpx96c');
-        if (sidebar) {
-            sidebar.style.backgroundColor = '#262730';
-        }
-
-        // Apply dark theme to other components
-        var elements = window.parent.document.querySelectorAll('.st-emotion-cache-12fmw6v, .st-emotion-cache-1r6chqg');
-        elements.forEach(el => {
-            el.style.backgroundColor = '#0E1117';
-        });
-
-        // Apply theme to headers
-        var headers = window.parent.document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-        headers.forEach(el => {
-            el.style.color = '#FAFAFA';
-        });
-
-        // Hide main menu and footer
-        var mainMenuItems = window.parent.document.querySelector("#MainMenu");
-        if (mainMenuItems) mainMenuItems.style.visibility = "hidden";
-        
-        var footer = window.parent.document.querySelector("footer");
-        if (footer) footer.style.visibility = "hidden";
+<style>
+    /* Estilos del tema oscuro */
+    body {
+        background-color: #0E1117;
+        color: #FAFAFA;
     }
-
-    // Run the function when the page loads
-    window.addEventListener('load', applyCustomTheme);
-    // Also run it on a short delay to catch dynamically loaded elements
-    setTimeout(applyCustomTheme, 500);
-</script>
+    .stApp {
+        background-color: #0E1117;
+    }
+    .st-emotion-cache-1cpx96c { /* Sidebar */
+        background-color: #262730;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #FAFAFA;
+    }
+    .stButton>button {
+        background-color: #4F8BF9;
+        color: white;
+    }
+    .st-emotion-cache-12fmw6v, .st-emotion-cache-1r6chqg {
+        background-color: #0E1117;
+    }
+    /* Ocultar el menú de Streamlit y el pie de página */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+</style>
 """
 
 st.markdown(custom_theme_script, unsafe_allow_html=True)
+
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
