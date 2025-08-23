@@ -49,6 +49,7 @@ custom_theme_script = """
 
 st.markdown(custom_theme_script, unsafe_allow_html=True)
 
+
 # Título de la aplicación
 st.title("❤️ Focus ECG")
 st.markdown("---")
@@ -110,7 +111,9 @@ def predict_with_model(data, model, file_type):
             prediction = model.predict(data_processed)
             st.write("Resultado de la predicción (probabilidades):", prediction)
             
-            classes = ['Ritmo sinusal normal', 'Arritmia', 'Taquicardia', 'Bradicardia']
+            # --- Clases de diagnóstico actualizadas ---
+            classes = ['Ritmo sinusal normal', 'Arritmia', 'Taquicardia', 'Bradicardia', 'IAM', 'Angina de pecho', 'Bloqueo']
+            
             predicted_class_index = np.argmax(prediction[0])
             diagnostico_final = classes[predicted_class_index]
             
@@ -136,49 +139,38 @@ def predict_with_model(data, model, file_type):
 # Cargar el modelo de IA al iniciar la aplicación
 ecg_model = load_ecg_model()
 
-# --- NAVEGACIÓN DE LA PÁGINA ---
+# --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
 
-# Sidebar para navegación
-st.sidebar.title("Navegación")
-opcion = st.sidebar.radio(
-    "Selecciona una opción:",
-    ["Inicio", "Subir ECG", "Resultados", "Acerca de"]
-)
+col1, col2 = st.columns([1, 1.5])
 
-if opcion == "Inicio":
-    st.header("Bienvenido a Focus ECG")
-    st.write("""
-    Esta aplicación utiliza inteligencia artificial para analizar señales ECG
-    y detectar posibles anomalías cardíacas.
+with col1:
+    st.header("Análisis de ECG")
+    st.write("Sube una imagen o usa la cámara para analizar un electrocardiograma.")
+    st.write("La IA te proporcionará un resumen detallado y las mediciones principales.")
     
-    ### Características:
-    - Análisis de señales ECG en tiempo real
-    - Detección de arritmias cardíacas
-    - Visualización interactiva de resultados
-    - Reportes detallados
-    """)
-    
-    # Ejemplo de visualización
-    st.subheader("Ejemplo de señal ECG")
-    x = np.linspace(0, 10, 1000)
-    y = np.sin(x) + 0.1 * np.random.randn(1000)
-    
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(x, y, 'b-', linewidth=1)
-    ax.set_title("Señal ECG de ejemplo")
-    ax.set_xlabel("Tiempo (s)")
-    ax.set_ylabel("Amplitud")
-    ax.grid(True)
-    st.pyplot(fig)
+    st.markdown("""
+        <div style="
+            background-color: #362f1c;
+            border-left: 5px solid #ffcc00;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+        ">
+        <h5 style="color: #ffcc00; margin: 0;">AVISO IMPORTANTE:</h5>
+        <p style="color: #ffcc00; margin-top: 5px;">
+        Este análisis es **solo para fines informativos** y no constituye un diagnóstico médico.
+        Siempre consulta a un profesional de la salud calificado para una interpretación precisa
+        de cualquier dato médico.
+        </p>
+        </div>
+    """, unsafe_allow_html=True)
 
-elif opcion == "Subir ECG":
-    st.header("Subir Archivo ECG")
-    
+    st.subheader("Subir ECG")
     archivo = st.file_uploader(
         "Selecciona un archivo ECG (formatos admitidos: CSV, TXT, PNG, JPG, JPEG)",
         type=['csv', 'txt', 'png', 'jpg', 'jpeg']
     )
-    
+
     if archivo is not None:
         st.success(f"Archivo {archivo.name} subido exitosamente!")
         
@@ -215,52 +207,24 @@ elif opcion == "Subir ECG":
                 st.error(f"Ocurrió un error durante el análisis: {e}")
                 st.session_state['processed'] = False
 
-elif opcion == "Resultados":
-    st.header("Resultados del Análisis")
+with col2:
+    st.subheader("Resultados del análisis:")
     
     if 'processed' in st.session_state and st.session_state['processed'] and st.session_state['results']:
         results = st.session_state['results']
         
-        col1, col2 = st.columns(2)
+        st.subheader("Diagnóstico")
+        diagnostico = results['diagnostico']
         
-        with col1:
-            st.subheader("Diagnóstico")
-            diagnostico = results['diagnostico']
+        if "normal" in diagnostico.lower():
+            st.success(diagnostico)
+        else:
+            st.error(diagnostico)
             
-            if "normal" in diagnostico.lower():
-                st.success(diagnostico)
-            else:
-                st.error(diagnostico)
-                
-            st.info(f"Probabilidad de {diagnostico}: {results['probabilidades'].get(diagnostico, 0):.2f}")
+        st.info(f"Probabilidad de {diagnostico}: {results['probabilidades'].get(diagnostico, 0):.2f}")
         
-        with col2:
-            st.subheader("Métricas de Desempeño del Modelo")
-            st.json(results['metricas'])
-        
-        st.subheader("Análisis Detallado")
-        
-        categorias = list(results['probabilidades'].keys())
-        valores = list(results['probabilidades'].values())
-        
-        fig, ax = plt.subplots()
-        colores = ['green', 'red', 'orange', 'blue']
-        ax.bar(categorias, valores, color=colores[:len(categorias)])
-        ax.set_ylabel('Probabilidad')
-        ax.set_title('Distribución de Diagnósticos')
-        ax.set_ylim(0, 1)
-        st.pyplot(fig)
-        
+        st.subheader("Métricas de Desempeño del Modelo")
+        st.json(results['metricas'])
+    
     else:
         st.warning("Por favor, sube y procesa un archivo ECG en la pestaña 'Subir ECG' primero.")
-
-elif opcion == "Acerca de":
-    st.header("Acerca de Focus ECG")
-    st.write("""
-    ### Tecnologías Utilizadas:
-    - **Python** con **TensorFlow/Keras** para el modelo de IA
-    - **Streamlit** para la interfaz web
-    - **Numpy** y **Pandas** para manejo de datos
-    - **Matplotlib** para visualizaciones
-    - **Requests** para posibles llamadas a API
-    """)
