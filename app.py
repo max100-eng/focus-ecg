@@ -72,6 +72,59 @@ def load_ecg_model():
         st.error(f"Error al cargar el modelo: {e}")
         return None
 
+def analyze_ecg_details(ecg_signal):
+    """
+    Simula un análisis detallado de los elementos del ECG basado en datos numéricos.
+    Esta función es solo para fines de demostración.
+    """
+    # Valores aleatorios que simulan un análisis del modelo
+    pr_interval = random.uniform(0.12, 0.22)
+    qrs_duration = random.uniform(0.06, 0.15)
+    st_segment = random.uniform(-0.1, 0.2)
+    qt_interval = random.uniform(0.35, 0.50)
+    
+    # Simulación de la forma de las ondas
+    onda_q_profunda = random.choice([True, False])
+    st_supradesnivel = st_segment > 0.1
+    st_infradesnivel = st_segment < -0.05
+    eje_desviado_derecha = random.choice([True, False])
+    eje_desviado_izquierda = random.choice([True, False])
+
+    # Construir el reporte detallado
+    reporte = {
+        "Frecuencia Cardíaca (lpm)": random.randint(60, 100),
+        "Ritmo": "Regular" if random.random() > 0.1 else "Irregular",
+        "Onda P": "Presente y normal",
+        "Intervalo PR (s)": "Normal" if 0.12 <= pr_interval <= 0.20 else "Alargado",
+        "Duración QRS (s)": "Normal" if qrs_duration <= 0.12 else "Ancho",
+        "Segmento ST": "Supradesnivel" if st_supradesnivel else ("Infradesnivel" if st_infradesnivel else "Isoeléctrico"),
+        "Onda Q": "Normal" if not onda_q_profunda else "Patológica",
+        "Onda T": "Normal",
+        "Intervalo QT (s)": "Normal" if qt_interval < 0.45 else "Alargado",
+        "Eje Cardíaco": "Normal"
+    }
+
+    if eje_desviado_derecha:
+        reporte["Eje Cardíaco"] = "Desviado a la derecha"
+    elif eje_desviado_izquierda:
+        reporte["Eje Cardíaco"] = "Desviado a la izquierda"
+
+    # Determinar el diagnóstico final basado en las simulaciones
+    if "Supradesnivel" in reporte["Segmento ST"] and reporte["Onda Q"] == "Patológica":
+        diagnostico_final = "Infarto Agudo del Miocardio (IAM)"
+    elif "Infradesnivel" in reporte["Segmento ST"]:
+        diagnostico_final = "Angina de pecho"
+    elif reporte["Duración QRS (s)"] == "Ancho":
+        diagnostico_final = "Bloqueo de Branca"
+    elif reporte["Intervalo PR (s)"] == "Alargado":
+        diagnostico_final = "Bloqueo del Seno Atrial"
+    elif reporte["Ritmo"] == "Irregular":
+        diagnostico_final = "Arritmia"
+    else:
+        diagnostico_final = "Ritmo sinusal normal"
+
+    return {"diagnostico": diagnostico_final, "analisis_detallado": reporte}
+
 def predict_with_model(data, model, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
@@ -107,47 +160,12 @@ def predict_with_model(data, model, file_type):
             data_processed = data_processed.reshape(1, *required_shape)
 
             # --- PASO 2: Predicción ---
-            prediction = model.predict(data_processed)
-            st.write("Resultado de la predicción (probabilidades):", prediction)
+            # La predicción del modelo real se usaría aquí para un diagnóstico.
+            # prediction = model.predict(data_processed)
+            # st.write("Resultado de la predicción (probabilidades):", prediction)
             
-            # --- Clases de diagnóstico actualizadas ---
-            classes = ['Ritmo sinusal normal', 'Arritmia', 'Bloqueo de Branca', 'Bloqueo del Seno Atrial', 'IAM', 'Angina de pecho']
-            
-            # Simulación de un diagnóstico más preciso basado en las reglas proporcionadas
-            # Esto es una simulación. El modelo real debe estar entrenado para estas clases.
-            simulated_probabilities = {
-                'Ritmo sinusal normal': random.uniform(0.7, 0.95),
-                'Arritmia': random.uniform(0.01, 0.1),
-                'Bloqueo de Branca': random.uniform(0.01, 0.05),
-                'Bloqueo del Seno Atrial': random.uniform(0.01, 0.05),
-                'IAM': random.uniform(0.01, 0.1),
-                'Angina de pecho': random.uniform(0.01, 0.1)
-            }
-            
-            # Normalizar las probabilidades para que sumen 1
-            total = sum(simulated_probabilities.values())
-            normalized_probabilities = {k: v / total for k, v in simulated_probabilities.items()}
-
-            # Escoger el diagnóstico con la probabilidad más alta
-            diagnostico_final = max(normalized_probabilities, key=normalized_probabilities.get)
-            
-            # Simulación del análisis detallado
-            analisis_detallado = ""
-            if "IAM" in diagnostico_final:
-                analisis_detallado = "Se observa un supradesnivelamiento del segmento ST en las derivaciones V2, V3 y V4, con onda Q patológica. Se sospecha de IAM."
-            elif "Angina" in diagnostico_final:
-                analisis_detallado = "Se observa un infradesnivelamiento del segmento ST en las derivaciones I, II y aVF, sin onda Q patológica. Se sospecha de Angina de pecho."
-            elif "Bloqueo" in diagnostico_final:
-                analisis_detallado = "La duración del complejo QRS es superior a 0,12 segundos. Se sospecha de un bloqueo de conducción."
-            else:
-                analisis_detallado = "Análisis completo de ondas y segmentos dentro de los rangos normales."
-
-            prediction_dict = {
-                "diagnostico": diagnostico_final,
-                "probabilidades": normalized_probabilities,
-                "analisis_detallado": analisis_detallado
-            }
-            return prediction_dict
+            # --- Simulación de un análisis detallado ---
+            return analyze_ecg_details(data_processed)
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
@@ -250,25 +268,14 @@ with col2:
         else:
             st.error(diagnostico)
             
-        st.info(f"Probabilidad de {diagnostico}: {results['probabilidades'].get(diagnostico, 0):.2f}")
+        st.subheader("Análisis Detallado de Elementos del ECG")
         
-        st.subheader("Análisis Detallado")
-        st.write(results['analisis_detallado'])
+        # Mostrar el reporte detallado en una tabla
+        analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
+        st.table(analisis_df)
 
-        # Gráfico de resultados
-        st.subheader("Distribución de Probabilidades")
-        
-        categorias = list(results['probabilidades'].keys())
-        valores = list(results['probabilidades'].values())
-        
-        fig, ax = plt.subplots()
-        colores = ['green', 'red', 'orange', 'blue', 'purple', 'red', 'darkred']
-        ax.bar(categorias, valores, color=colores[:len(categorias)])
-        ax.set_ylabel('Probabilidad')
-        ax.set_title('Distribución de Diagnósticos')
-        ax.set_ylim(0, 1)
-        st.pyplot(fig)
-        
+        st.info(results['analisis_detallado'])
+
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
