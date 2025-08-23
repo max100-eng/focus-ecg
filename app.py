@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 import requests
 from io import BytesIO
 import json
-import random # Usado para generar resultados simulados
+import random
 
-# Configuración de la página
+# Streamlit page configuration (title, layout, and custom theme)
 st.set_page_config(
-    page_title="Focus ECG ",
+    page_title="Focus ECG",
     page_icon="❤️",
     layout="wide"
 )
@@ -62,7 +62,6 @@ custom_theme_script = """
 """
 
 st.markdown(custom_theme_script, unsafe_allow_html=True)
-
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
