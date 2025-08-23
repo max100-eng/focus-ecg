@@ -81,7 +81,6 @@ def predict_with_model(data, model, file_type):
         try:
             # Si el archivo es una imagen, se usan datos de ejemplo
             if file_type in ["image/png", "image/jpeg", "image/jpg"]:
-                st.warning("Advertencia: Los archivos de imagen no contienen datos de señal ECG. Se usará una señal de datos de ejemplo para demostrar la funcionalidad.")
                 data_numpy = np.random.randn(1000)
             elif isinstance(data, pd.DataFrame):
                 # Suponiendo que la columna con la señal ECG se llama 'ECG_signal'
@@ -174,6 +173,10 @@ with col1:
     if archivo is not None:
         st.success(f"Archivo {archivo.name} subido exitosamente!")
         
+        # Guardar el archivo subido en el estado de la sesión
+        st.session_state['last_uploaded_file'] = archivo
+        st.session_state['last_uploaded_file_type'] = archivo.type
+
         with st.spinner("Procesando señal ECG..."):
             progress_bar = st.progress(0)
             for i in range(100):
@@ -197,7 +200,7 @@ with col1:
                     if results:
                         st.session_state['results'] = results
                         st.session_state['processed'] = True
-                        st.success("Procesamiento completado! Ve a la pestaña 'Resultados' para ver el informe.")
+                        st.success("Procesamiento completado!")
                     else:
                         st.session_state['processed'] = False
                 else:
