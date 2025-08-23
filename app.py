@@ -186,7 +186,6 @@ with col1:
                 if file_type in ["text/csv", "text/plain"]:
                     data = pd.read_csv(archivo)
                 elif file_type in ["image/png", "image/jpeg"]:
-                    st.warning("Advertencia: Los archivos de imagen no contienen datos de señal ECG. Se usará una señal de datos de ejemplo para demostrar la funcionalidad.")
                     data = np.random.randn(1000)
                 else:
                     st.warning("Tipo de archivo no soportado para análisis.")
@@ -208,11 +207,15 @@ with col1:
                 st.session_state['processed'] = False
 
 with col2:
-    st.subheader("Resultados del análisis:")
-    
-    if 'processed' in st.session_state and st.session_state['processed'] and st.session_state['results']:
+    if 'processed' in st.session_state and st.session_state['processed']:
+        st.subheader("Resultados del análisis:")
         results = st.session_state['results']
-        
+
+        if 'last_uploaded_file_type' in st.session_state and st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg"]:
+            # Display the uploaded image
+            st.subheader("ECG Subido")
+            st.image(st.session_state['last_uploaded_file'], caption="ECG Subido")
+
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
@@ -227,4 +230,5 @@ with col2:
         st.json(results['metricas'])
     
     else:
+        st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG en la pestaña 'Subir ECG' primero.")
