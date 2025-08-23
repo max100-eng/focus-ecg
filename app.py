@@ -49,7 +49,6 @@ custom_theme_script = """
 
 st.markdown(custom_theme_script, unsafe_allow_html=True)
 
-
 # Título de la aplicación
 st.title("❤️ Focus ECG")
 st.markdown("---")
