@@ -237,11 +237,11 @@ with col2:
         st.subheader("Resultados del análisis:")
         results = st.session_state['results']
 
-        if 'last_uploaded_file_type' in st.session_state and st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg"]:
+        if 'last_uploaded_file_type' in st.session_state and st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg", "image/jpg"]:
             # Display the uploaded image
             st.subheader("ECG Subido")
             st.image(st.session_state['last_uploaded_file'], caption="ECG Subido")
-
+        
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
