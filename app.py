@@ -12,10 +12,57 @@ import random # Usado para generar resultados simulados
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Focus ECG",
+    page_title="Focus ECG ",
     page_icon="❤️",
     layout="wide"
 )
+
+# Custom theme with JavaScript and updated CSS classes
+custom_theme_script = """
+<script>
+    function applyCustomTheme() {
+        // Apply dark theme to the main Streamlit container
+        var mainContainer = window.parent.document.querySelector('.stApp');
+        if (mainContainer) {
+            mainContainer.style.backgroundColor = '#0E1117';
+            mainContainer.style.color = '#FAFAFA';
+        }
+
+        // Apply dark theme to the sidebar
+        var sidebar = window.parent.document.querySelector('.st-emotion-cache-1cpx96c');
+        if (sidebar) {
+            sidebar.style.backgroundColor = '#262730';
+        }
+
+        // Apply dark theme to other components
+        var elements = window.parent.document.querySelectorAll('.st-emotion-cache-12fmw6v, .st-emotion-cache-1r6chqg');
+        elements.forEach(el => {
+            el.style.backgroundColor = '#0E1117';
+        });
+
+        // Apply theme to headers
+        var headers = window.parent.document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        headers.forEach(el => {
+            el.style.color = '#FAFAFA';
+        });
+
+        // Hide main menu and footer
+        var mainMenuItems = window.parent.document.querySelector("#MainMenu");
+        if (mainMenuItems) mainMenuItems.style.visibility = "hidden";
+        
+        var footer = window.parent.document.querySelector("footer");
+        if (footer) footer.style.visibility = "hidden";
+    }
+
+    // Run the function when the page loads
+    window.addEventListener('load', applyCustomTheme);
+    // Also run it on a short delay to catch dynamically loaded elements
+    setTimeout(applyCustomTheme, 500);
+</script>
+"""
+
+st.markdown(custom_theme_script, unsafe_allow_html=True)
+
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
@@ -39,22 +86,18 @@ def load_ecg_model():
         st.error(f"Error al cargar el modelo: {e}")
         return None
 
-def predict_with_model(data, model):
+def predict_with_model(data, model, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
     """
     if model:
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         try:
-            # --- PASO 1: Preprocesamiento de los datos ---
-            # Los modelos de IA requieren que los datos de entrada tengan una forma y escala específicas.
-            # Este es un ejemplo para un archivo CSV con una columna 'ECG_signal'.
-            # Debes ajustar esto a la estructura real de tus datos.
-            
-            # Si el modelo espera una forma específica (ej. (1, 1000, 1))
-            required_shape = model.input_shape[1:]
-
-            if isinstance(data, pd.DataFrame):
+            # Si el archivo es una imagen, se usan datos de ejemplo
+            if file_type in ["image/png", "image/jpeg", "image/jpg"]:
+                st.warning("Advertencia: Los archivos de imagen no contienen datos de señal ECG. Se usará una señal de datos de ejemplo para demostrar la funcionalidad.")
+                data_numpy = np.random.randn(1000)
+            elif isinstance(data, pd.DataFrame):
                 # Suponiendo que la columna con la señal ECG se llama 'ECG_signal'
                 if 'ECG_signal' in data.columns:
                     data_numpy = data['ECG_signal'].values
@@ -62,10 +105,11 @@ def predict_with_model(data, model):
                     st.error("Columna 'ECG_signal' no encontrada en el archivo CSV.")
                     return None
             else:
-                # Si los datos no son un DataFrame, se asume que ya es un array
                 data_numpy = np.array(data)
 
-            # Recortar o rellenar los datos para que coincidan con la forma del modelo
+            # --- PASO 1: Preprocesamiento de los datos ---
+            required_shape = model.input_shape[1:]
+            
             if len(data_numpy) > required_shape[0]:
                 data_processed = data_numpy[:required_shape[0]]
             elif len(data_numpy) < required_shape[0]:
@@ -74,21 +118,14 @@ def predict_with_model(data, model):
             else:
                 data_processed = data_numpy
 
-            # Rescalar los datos (normalizar)
             data_processed = (data_processed - np.mean(data_processed)) / np.std(data_processed)
-
-            # Reestructurar el array para que coincida con la forma de entrada del modelo (ej. (1, 1000, 1))
             data_processed = data_processed.reshape(1, *required_shape)
 
             # --- PASO 2: Predicción ---
             prediction = model.predict(data_processed)
             st.write("Resultado de la predicción (probabilidades):", prediction)
             
-            # Suponiendo que tu modelo devuelve las probabilidades para las clases
-            # Asegúrate de que 'classes' coincida con las clases de tu modelo
             classes = ['Ritmo sinusal normal', 'Arritmia', 'Taquicardia', 'Bradicardia']
-            
-            # Encontrar el índice de la clase con la mayor probabilidad
             predicted_class_index = np.argmax(prediction[0])
             diagnostico_final = classes[predicted_class_index]
             
@@ -108,7 +145,6 @@ def predict_with_model(data, model):
             return None
     
     else:
-        # Se muestra este mensaje si el modelo no pudo ser cargado
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 
@@ -154,14 +190,13 @@ elif opcion == "Subir ECG":
     st.header("Subir Archivo ECG")
     
     archivo = st.file_uploader(
-        "Selecciona un archivo ECG (formato CSV, MAT, EDF, TXT, PNG, JPG o JPEG)",
-        type=['csv', 'mat', 'edf', 'txt', 'png', 'jpg', 'jpeg']
+        "Selecciona un archivo ECG (formatos admitidos: CSV, TXT, PNG, JPG, JPEG)",
+        type=['csv', 'txt', 'png', 'jpg', 'jpeg']
     )
     
     if archivo is not None:
         st.success(f"Archivo {archivo.name} subido exitosamente!")
         
-        # Simulación de procesamiento con un spinner
         with st.spinner("Procesando señal ECG..."):
             progress_bar = st.progress(0)
             for i in range(100):
@@ -173,8 +208,6 @@ elif opcion == "Subir ECG":
                 
                 if file_type in ["text/csv", "text/plain"]:
                     data = pd.read_csv(archivo)
-                    # Asegurarse de que el DataFrame tiene los datos que el modelo necesita
-                    # Por ejemplo: data = data['nombre_columna_senal']
                 elif file_type in ["image/png", "image/jpeg"]:
                     st.warning("Advertencia: Los archivos de imagen no contienen datos de señal ECG. Se usará una señal de datos de ejemplo para demostrar la funcionalidad.")
                     data = np.random.randn(1000)
@@ -183,8 +216,7 @@ elif opcion == "Subir ECG":
                     data = None
 
                 if data is not None:
-                    # Obtiene la predicción del modelo
-                    results = predict_with_model(data, ecg_model)
+                    results = predict_with_model(data, ecg_model, file_type)
                     
                     if results:
                         st.session_state['results'] = results
@@ -215,13 +247,12 @@ elif opcion == "Resultados":
             else:
                 st.error(diagnostico)
                 
-            st.info(f"Probabilidad de {diagnostico}: {results['probabilidades'].get(diagnostico, 'N/A'):.2f}")
+            st.info(f"Probabilidad de {diagnostico}: {results['probabilidades'].get(diagnostico, 0):.2f}")
         
         with col2:
             st.subheader("Métricas de Desempeño del Modelo")
             st.json(results['metricas'])
         
-        # Gráfico de resultados
         st.subheader("Análisis Detallado")
         
         categorias = list(results['probabilidades'].keys())
@@ -232,7 +263,7 @@ elif opcion == "Resultados":
         ax.bar(categorias, valores, color=colores[:len(categorias)])
         ax.set_ylabel('Probabilidad')
         ax.set_title('Distribución de Diagnósticos')
-        ax.set_ylim(0, 1) # Asegura que el eje Y vaya de 0 a 1
+        ax.set_ylim(0, 1)
         st.pyplot(fig)
         
     else:
