@@ -226,18 +226,18 @@ with col1:
     st.subheader("Subir ECG")
     
     # Opciones de subida de archivos (solo en escritorio)
-    uploaded_file = st.st_file_uploader(
+    uploaded_file = st.file_uploader(
         "Sube un archivo ECG",
         type=['csv', 'txt', 'png', 'jpg', 'jpeg']
     )
     
-    url_input = st.st_text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
+    url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
     # Opciones de cámara (solo en móvil)
-    camera_file = st.st_camera_input("...o toma una foto")
+    camera_file = st.camera_input("...o toma una foto")
 
     # Botón para iniciar el análisis
-    analyze_button = st.st_button("Analizar")
+    analyze_button = st.button("Analizar")
 
     # Procesar la entrada
     if analyze_button:
