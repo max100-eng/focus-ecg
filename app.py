@@ -28,7 +28,7 @@ custom_theme_script = """
     .stApp {
         background-color: #0E1117;
     }
-    .st-emotion-cache-1cpx96c { /* Sidebar */
+    .st-emotion-cache-1cpx96v { /* Sidebar */
         background-color: #262730;
     }
     h1, h2, h3, h4, h5, h6 {
@@ -210,17 +210,58 @@ with col1:
         </div>
     """, unsafe_allow_html=True)
 
-    st.subheader("Tomar Foto")
+    st.subheader("Subir ECG")
     
     # Opciones de subida de archivos
-    camera_file = st.camera_input("Toca aquí para activar la cámara de tu dispositivo")
+    uploaded_file = st.file_uploader(
+        "Sube un archivo ECG",
+        type=['csv', 'txt', 'png', 'jpg', 'jpeg']
+    )
+    
+    camera_file = st.camera_input("...o toma una foto")
 
-    if camera_file is not None:
-        st.success(f"Foto capturada exitosamente!")
-        
+    url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
+    
+    # Botón para iniciar el análisis
+    analyze_button = st.button("Analizar")
+
+    # Procesar la entrada
+    source_file = None
+    file_type = None
+    file_name = None
+
+    if uploaded_file:
+        source_file = uploaded_file
+        file_type = uploaded_file.type
+        file_name = uploaded_file.name
+    elif camera_file:
+        source_file = camera_file
+        file_type = camera_file.type
+        file_name = "Foto de la cámara"
+    elif url_input:
+        try:
+            response = requests.get(url_input)
+            response.raise_for_status()  # Check if the request was successful
+            source_file = BytesIO(response.content)
+            # Guess the file type from the URL
+            if 'png' in url_input.lower():
+                file_type = 'image/png'
+            elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
+                file_type = 'image/jpeg'
+            else:
+                file_type = 'image/unknown'
+            file_name = url_input
+            st.success("Imagen de URL cargada exitosamente!")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error al descargar la imagen de la URL: {e}")
+            source_file = None
+            file_type = None
+
+    if analyze_button and source_file is not None:
         # Guardar el archivo subido en el estado de la sesión
-        st.session_state['last_uploaded_file'] = camera_file
-        st.session_state['last_uploaded_file_type'] = camera_file.type
+        st.session_state['last_uploaded_file'] = source_file
+        st.session_state['last_uploaded_file_type'] = file_type
+        st.session_state['last_file_name'] = file_name
 
         with st.spinner("Procesando señal ECG..."):
             progress_bar = st.progress(0)
@@ -228,11 +269,10 @@ with col1:
                 progress_bar.progress(i + 1)
             
             try:
-                file_type = camera_file.type
                 data = None
                 
                 if file_type in ["text/csv", "text/plain"]:
-                    data = pd.read_csv(camera_file)
+                    data = pd.read_csv(source_file)
                 elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
                     # Los datos de la imagen se simulan para la predicción
                     data = np.random.randn(1000)
@@ -264,7 +304,7 @@ with col2:
             # Display the uploaded image with a red border
             st.subheader("ECG Subido")
             st.markdown('<div class="red-border">', unsafe_allow_html=True)
-            st.image(st.session_state['last_uploaded_file'], caption="ECG Subido", use_column_width=True)
+            st.image(st.session_state['last_uploaded_file'], caption=st.session_state.get('last_file_name', 'Archivo ECG'), use_column_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.subheader("Diagnóstico")
