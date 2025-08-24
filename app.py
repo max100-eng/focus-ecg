@@ -66,7 +66,7 @@ def load_ecg_model():
     try:
         # Aquí se carga el modelo de TensorFlow
         model = keras.models.load_model('modelo_ecg.h5')
-        st.success("Modelo de TensorFlow cargado exitosamente.")
+        st.info("Modelo de TensorFlow cargado exitosamente.")
         return model
     except Exception as e:
         st.error(f"Error al cargar el modelo: {e}")
@@ -95,12 +95,12 @@ def analyze_ecg_details(ecg_signal):
         "Frecuencia Cardíaca (lpm)": random.randint(60, 100),
         "Ritmo": "Regular" if random.random() > 0.1 else "Irregular",
         "Onda P": "Presente y normal",
-        "Intervalo PR (s)": "Normal" if 0.12 <= pr_interval <= 0.20 else "Alargado",
-        "Duración QRS (s)": "Normal" if qrs_duration <= 0.12 else "Ancho",
-        "Segmento ST": "Supradesnivel" if st_supradesnivel else ("Infradesnivel" if st_infradesnivel else "Isoeléctrico"),
+        "Intervalo PR (s)": f"{pr_interval:.2f} ({'Normal' if 0.12 <= pr_interval <= 0.20 else 'Alargado'})",
+        "Duración QRS (s)": f"{qrs_duration:.2f} ({'Normal' if qrs_duration <= 0.12 else 'Ancho'})",
+        "Segmento ST": f"{st_segment:.2f} mV ({'Supradesnivel' if st_supradesnivel else ('Infradesnivel' if st_infradesnivel else 'Isoeléctrico')})",
         "Onda Q": "Normal" if not onda_q_profunda else "Patológica",
         "Onda T": "Normal",
-        "Intervalo QT (s)": "Normal" if qt_interval < 0.45 else "Alargado",
+        "Intervalo QT (s)": f"{qt_interval:.2f} ({'Normal' if qt_interval < 0.45 else 'Alargado'})",
         "Eje Cardíaco": "Normal"
     }
 
@@ -116,7 +116,7 @@ def analyze_ecg_details(ecg_signal):
         diagnostico_final = "Angina de pecho"
     elif reporte["Duración QRS (s)"] == "Ancho":
         diagnostico_final = "Bloqueo de Branca"
-    elif reporte["Intervalo PR (s)"] == "Alargado":
+    elif "Alargado" in reporte["Intervalo PR (s)"]:
         diagnostico_final = "Bloqueo del Seno Atrial"
     elif reporte["Ritmo"] == "Irregular":
         diagnostico_final = "Arritmia"
@@ -273,9 +273,6 @@ with col2:
         # Mostrar el reporte detallado en una tabla
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
-
-        st.info(results['analisis_detallado'])
-
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
