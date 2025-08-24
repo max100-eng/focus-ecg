@@ -50,6 +50,19 @@ custom_theme_script = """
         border: 4px solid red;
         padding: 5px;
     }
+
+    /* Ocultar la cámara en pantallas grandes */
+    @media (min-width: 768px) {
+        .mobile-only {
+            display: none;
+        }
+    }
+    /* Ocultar el uploader y URL en pantallas pequeñas */
+    @media (max-width: 767px) {
+        .desktop-only {
+            display: none;
+        }
+    }
 </style>
 """
 
@@ -212,88 +225,90 @@ with col1:
 
     st.subheader("Subir ECG")
     
-    # Opciones de subida de archivos
+    # Opciones de subida de archivos (solo en escritorio)
     uploaded_file = st.file_uploader(
         "Sube un archivo ECG",
         type=['csv', 'txt', 'png', 'jpg', 'jpeg']
     )
     
-    camera_file = st.camera_input("...o toma una foto")
-
     url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
+    # Opciones de cámara (solo en móvil)
+    camera_file = st.camera_input("...o toma una foto")
+
     # Botón para iniciar el análisis
     analyze_button = st.button("Analizar")
 
     # Procesar la entrada
-    source_file = None
-    file_type = None
-    file_name = None
-
-    if uploaded_file:
-        source_file = uploaded_file
-        file_type = uploaded_file.type
-        file_name = uploaded_file.name
-    elif camera_file:
-        source_file = camera_file
-        file_type = camera_file.type
-        file_name = "Foto de la cámara"
-    elif url_input:
-        try:
-            response = requests.get(url_input)
-            response.raise_for_status()  # Check if the request was successful
-            source_file = BytesIO(response.content)
-            # Guess the file type from the URL
-            if 'png' in url_input.lower():
-                file_type = 'image/png'
-            elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
-                file_type = 'image/jpeg'
-            else:
-                file_type = 'image/unknown'
-            file_name = url_input
-            st.success("Imagen de URL cargada exitosamente!")
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error al descargar la imagen de la URL: {e}")
-            source_file = None
-            file_type = None
-
-    if analyze_button and source_file is not None:
-        # Guardar el archivo subido en el estado de la sesión
-        st.session_state['last_uploaded_file'] = source_file
-        st.session_state['last_uploaded_file_type'] = file_type
-        st.session_state['last_file_name'] = file_name
-
-        with st.spinner("Procesando señal ECG..."):
-            progress_bar = st.progress(0)
-            for i in range(100):
-                progress_bar.progress(i + 1)
-            
+    if analyze_button:
+        source_file = None
+        file_type = None
+        file_name = None
+        
+        if uploaded_file:
+            source_file = uploaded_file
+            file_type = uploaded_file.type
+            file_name = uploaded_file.name
+        elif camera_file:
+            source_file = camera_file
+            file_type = camera_file.type
+            file_name = "Foto de la cámara"
+        elif url_input:
             try:
-                data = None
-                
-                if file_type in ["text/csv", "text/plain"]:
-                    data = pd.read_csv(source_file)
-                elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
-                    # Los datos de la imagen se simulan para la predicción
-                    data = np.random.randn(1000)
+                response = requests.get(url_input)
+                response.raise_for_status()  # Check if the request was successful
+                source_file = BytesIO(response.content)
+                # Guess the file type from the URL
+                if 'png' in url_input.lower():
+                    file_type = 'image/png'
+                elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
+                    file_type = 'image/jpeg'
                 else:
-                    st.warning("Tipo de archivo no soportado para análisis.")
-                    data = None
+                    file_type = 'image/unknown'
+                file_name = url_input
+                st.success("Imagen de URL cargada exitosamente!")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error al descargar la imagen de la URL: {e}")
+                source_file = None
+                file_type = None
 
-                if data is not None:
-                    results = predict_with_model(data, ecg_model, file_type)
+        if source_file is not None:
+            # Guardar el archivo subido en el estado de la sesión
+            st.session_state['last_uploaded_file'] = source_file
+            st.session_state['last_uploaded_file_type'] = file_type
+            st.session_state['last_file_name'] = file_name
+
+            with st.spinner("Procesando señal ECG..."):
+                progress_bar = st.progress(0)
+                for i in range(100):
+                    progress_bar.progress(i + 1)
+                
+                try:
+                    data = None
                     
-                    if results:
-                        st.session_state['results'] = results
-                        st.session_state['processed'] = True
-                        st.success("Procesamiento completado!")
+                    if file_type in ["text/csv", "text/plain"]:
+                        data = pd.read_csv(source_file)
+                    elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
+                        # Los datos de la imagen se simulan para la predicción
+                        data = np.random.randn(1000)
+                    else:
+                        st.warning("Tipo de archivo no soportado para análisis.")
+                        data = None
+
+                    if data is not None:
+                        results = predict_with_model(data, ecg_model, file_type)
+                        
+                        if results:
+                            st.session_state['results'] = results
+                            st.session_state['processed'] = True
+                            st.success("Procesamiento completado!")
+                        else:
+                            st.session_state['processed'] = False
                     else:
                         st.session_state['processed'] = False
-                else:
+                except Exception as e:
+                    st.error(f"Ocurrió un error durante el análisis: {e}")
                     st.session_state['processed'] = False
-            except Exception as e:
-                st.error(f"Ocurrió un error durante el análisis: {e}")
-                st.session_state['processed'] = False
 
 with col2:
     if 'processed' in st.session_state and st.session_state['processed']:
