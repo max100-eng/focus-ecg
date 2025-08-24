@@ -1,14 +1,5 @@
-<<<<<<< HEAD
 streamlit
 numpy
 pandas
 tensorflow
 matplotlib
-=======
-streamlit
-numpy
-pandas
-tensorflow
-matplotlib
->>>>>>> fcfc2575bd34509876391a24e76a62b088377efb
-requests
