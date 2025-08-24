@@ -44,12 +44,6 @@ custom_theme_script = """
     /* Ocultar el menú de Streamlit y el pie de página */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-
-    /* Estilo para el marco de enfoque de la imagen */
-    .red-border {
-        border: 4px solid red;
-        padding: 5px;
-    }
 </style>
 """
 
