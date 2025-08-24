@@ -205,17 +205,49 @@ with col1:
     """, unsafe_allow_html=True)
 
     st.subheader("Subir ECG")
-    archivo = st.file_uploader(
+    
+    # Opciones de subida de archivos
+    uploaded_file = st.file_uploader(
         "Selecciona un archivo ECG (formatos admitidos: CSV, TXT, PNG, JPG, JPEG)",
         type=['csv', 'txt', 'png', 'jpg', 'jpeg']
     )
+    
+    camera_file = st.camera_input("Tomar una foto")
 
-    if archivo is not None:
-        st.success(f"Archivo {archivo.name} subido exitosamente!")
-        
+    url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
+
+    # Procesar la entrada
+    source_file = None
+    file_type = None
+
+    if uploaded_file:
+        source_file = uploaded_file
+        file_type = uploaded_file.type
+    elif camera_file:
+        source_file = camera_file
+        file_type = camera_file.type
+    elif url_input:
+        try:
+            response = requests.get(url_input)
+            response.raise_for_status()  # Check if the request was successful
+            source_file = BytesIO(response.content)
+            # Guess the file type from the URL
+            if 'png' in url_input.lower():
+                file_type = 'image/png'
+            elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
+                file_type = 'image/jpeg'
+            else:
+                file_type = 'image/unknown'
+            st.success("Imagen de URL cargada exitosamente!")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error al descargar la imagen de la URL: {e}")
+            source_file = None
+            file_type = None
+    
+    if source_file is not None:
         # Guardar el archivo subido en el estado de la sesión
-        st.session_state['last_uploaded_file'] = archivo
-        st.session_state['last_uploaded_file_type'] = archivo.type
+        st.session_state['last_uploaded_file'] = source_file
+        st.session_state['last_uploaded_file_type'] = file_type
 
         with st.spinner("Procesando señal ECG..."):
             progress_bar = st.progress(0)
@@ -223,11 +255,10 @@ with col1:
                 progress_bar.progress(i + 1)
             
             try:
-                file_type = archivo.type
                 data = None
                 
                 if file_type in ["text/csv", "text/plain"]:
-                    data = pd.read_csv(archivo)
+                    data = pd.read_csv(source_file)
                 elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
                     # Los datos de la imagen se simulan para la predicción
                     data = np.random.randn(1000)
