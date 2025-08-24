@@ -304,7 +304,7 @@ with col2:
             # Display the uploaded image with a red border
             st.subheader("ECG Subido")
             st.markdown('<div class="red-border">', unsafe_allow_html=True)
-            st.image(st.session_state['last_uploaded_file'], caption=st.session_state.get('last_file_name', 'Archivo ECG'), use_column_width=True)
+            st.image(st.session_state['last_uploaded_file'], caption=st.session_state.get('last_file_name', 'Archivo ECG'), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.subheader("Diagnóstico")
