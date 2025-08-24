@@ -50,19 +50,6 @@ custom_theme_script = """
         border: 4px solid red;
         padding: 5px;
     }
-
-    /* Ocultar la cámara en pantallas grandes */
-    @media (min-width: 768px) {
-        .mobile-only {
-            display: none;
-        }
-    }
-    /* Ocultar el uploader y URL en pantallas pequeñas */
-    @media (max-width: 767px) {
-        .desktop-only {
-            display: none;
-        }
-    }
 </style>
 """
 
