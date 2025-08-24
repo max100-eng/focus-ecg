@@ -226,18 +226,18 @@ with col1:
     st.subheader("Subir ECG")
     
     # Opciones de subida de archivos (solo en escritorio)
-    uploaded_file = st.file_uploader(
+    uploaded_file = st.st_file_uploader(
         "Sube un archivo ECG",
         type=['csv', 'txt', 'png', 'jpg', 'jpeg']
     )
     
-    url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
+    url_input = st.st_text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
     # Opciones de cámara (solo en móvil)
-    camera_file = st.camera_input("...o toma una foto")
+    camera_file = st.st_camera_input("...o toma una foto")
 
     # Botón para iniciar el análisis
-    analyze_button = st.button("Analizar")
+    analyze_button = st.st_button("Analizar")
 
     # Procesar la entrada
     if analyze_button:
@@ -336,5 +336,5 @@ with col2:
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
     else:
-        st.subheader("Resultados del análisis:")
-        st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
+        st.subheader("Results of analysis:")
+        st.warning("Please upload and process an ECG file to view the report.")
