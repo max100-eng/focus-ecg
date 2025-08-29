@@ -255,9 +255,7 @@ def process_ecg_image(image_bytes):
         st.error(f"Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-
-
-   def predict_with_model(data, model, file_type):
+def predict_with_model(data, model, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
     """
