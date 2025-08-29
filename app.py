@@ -9,6 +9,8 @@ import requests
 from io import BytesIO
 import json
 import random
+import cv2
+from PIL import Image
 
 # Streamlit page configuration (title, layout, and custom theme)
 st.set_page_config(
@@ -163,6 +165,52 @@ def analyze_ecg_details(ecg_signal):
 
     return {"diagnostico": diagnostico_final, "analisis_detallado": reporte}
 
+def process_ecg_image(image_bytes):
+    """
+    Lee una imagen de ECG, la convierte en una señal numérica y la normaliza.
+    
+    Este es un ejemplo simplificado. Una solución para producción requeriría
+    técnicas de visión por computadora más avanzadas para manejar distintos formatos,
+    ruidos y estilos de cuadrículas de ECG.
+    """
+    try:
+        # Paso 1: Leer la imagen desde los bytes
+        image = Image.open(image_bytes)
+        
+        # Paso 2: Convertir a escala de grises y a un array de NumPy
+        gray_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
+        
+        # Paso 3: Aplicar umbral para aislar la línea de la señal
+        _, signal_line = cv2.threshold(gray_image, 100, 255, cv2.THRESH_BINARY_INV)
+        
+        # Paso 4: Encontrar las coordenadas Y de la señal
+        # Procesamos la imagen columna por columna para extraer la señal
+        signal = []
+        for col in range(signal_line.shape[1]):
+            # Encontrar la coordenada Y del primer píxel negro (la señal)
+            coords = np.where(signal_line[:, col] > 0)[0]
+            if len(coords) > 0:
+                signal.append(coords[0])
+            else:
+                # Si no se encuentra señal, usar el valor anterior o un marcador de posición
+                signal.append(signal[-1] if signal else 0)
+
+        # Paso 5: Convertir a un array de NumPy y normalizar
+        signal_array = np.array(signal, dtype=np.float32)
+        
+        # Ajustar al tamaño requerido de 1000 muestras
+        if len(signal_array) > 1000:
+            signal_array = signal_array[:1000]
+        elif len(signal_array) < 1000:
+            padding = np.zeros(1000 - len(signal_array))
+            signal_array = np.concatenate((signal_array, padding))
+            
+        return signal_array
+        
+    except Exception as e:
+        st.error(f"Error en el procesamiento de la imagen: {e}")
+        return None
+
 def predict_with_model(data, model, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
@@ -171,7 +219,10 @@ def predict_with_model(data, model, file_type):
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         try:
             if file_type in ["image/png", "image/jpeg", "image/jpg"]:
-                data_numpy = np.random.randn(1000)
+                # Usar la nueva función para procesar la imagen y obtener la señal
+                data_numpy = process_ecg_image(data)
+                if data_numpy is None:
+                    return None
             elif isinstance(data, pd.DataFrame):
                 if 'ECG_signal' in data.columns:
                     data_numpy = data['ECG_signal'].values
@@ -194,16 +245,21 @@ def predict_with_model(data, model, file_type):
             data_processed = (data_processed - np.mean(data_processed)) / np.std(data_processed)
             data_processed = data_processed.reshape(1, *required_shape)
             
+            # Aquí es donde se pasaría la predicción real del modelo en lugar de la simulación
+            # prediction = model.predict(data_processed)
+            # return process_prediction(prediction)
+
             return analyze_ecg_details(data_processed)
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
             return None
-    
+            
     else:
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 
+# Carga del modelo global
 ecg_model = load_ecg_model()
 
 # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
@@ -235,10 +291,6 @@ with col1:
     
     url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
-    # --- INICIO: CÓDIGO ELIMINADO PARA LA CÁMARA ---
-    # La línea para st.camera_input fue eliminada.
-    # --- FIN: CÓDIGO ELIMINADO PARA LA CÁMARA ---
-
     analyze_button = st.button("Analizar")
 
     if analyze_button:
@@ -250,10 +302,6 @@ with col1:
             source_file = uploaded_file
             file_type = uploaded_file.type
             file_name = uploaded_file.name
-        # elif camera_file:
-        #     source_file = camera_file
-        #     file_type = camera_file.type
-        #     file_name = "Foto de la cámara"
         elif url_input:
             try:
                 response = requests.get(url_input)
@@ -287,7 +335,7 @@ with col1:
                     if file_type in ["text/csv", "text/plain"]:
                         data = pd.read_csv(source_file)
                     elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
-                        data = np.random.randn(1000)
+                        data = source_file # Pasar el objeto de bytes de archivo para que la función de procesamiento lo maneje
                     else:
                         st.warning("Tipo de archivo no soportado para análisis.")
                         data = None
@@ -321,7 +369,6 @@ with col2:
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
-        # --- INICIO: CÓDIGO MODIFICADO PARA EL DIAGNÓSTICO ---
         if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
             st.warning("Busque **ATENCIÓN MÉDICA DE URGENCIA** de inmediato. Este resultado sugiere un posible evento cardíaco grave.")
@@ -329,7 +376,6 @@ with col2:
             st.success(diagnostico)
         else:
             st.warning(diagnostico)
-        # --- FIN: CÓDIGO MODIFICADO PARA EL DIAGNÓSTICO ---
             
         st.subheader("Análisis Detallado de Elementos del ECG")
         
