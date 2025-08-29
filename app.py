@@ -283,39 +283,6 @@ def predict_with_model(data, model, file_type):
             data_processed = data_numpy.reshape(1, *required_shape)
             
             # --- Lógica de predicción real ---
-            # 1. Asegura que el modelo se inicialice haciendo una predicción
-            prediction = model.predict(data_processed)
-            
-            # 2. Ahora que el modelo está "construido", genera el heatmap
-            heatmap_data = generate_heatmap(model, data_processed)
-            
-            # 3. Interpreta la predicción del modelo y obtén el reporte
-            results = interpret_model_output(prediction)
-            
-            # 4. Combina los resultados y los datos del heatmap
-            results["heatmap_data"] = heatmap_data
-
-            return results
-            # --- Fin de la lógica corregida ---
-
-        except Exception as e:
-            st.error(f"Error durante la predicción con el modelo: {e}")
-            return None
-            
-    else:
-        st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
-        return None
-            else:
-                data_numpy = np.array(data)
-
-            if data_numpy.shape[0] != 1000:
-                st.error(f"La señal de ECG preprocesada tiene una longitud incorrecta ({data_numpy.shape[0]}). Se esperaba 1000.")
-                return None
-
-            required_shape = model.input_shape[1:]
-            data_processed = data_numpy.reshape(1, *required_shape)
-            
-            # --- Lógica de predicción real ---
             prediction = model.predict(data_processed)
             heatmap_data = generate_heatmap(model, data_processed)
             results = interpret_model_output(prediction)
