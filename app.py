@@ -162,64 +162,90 @@ def analyze_ecg_details(ecg_signal):
         diagnostico_final = "Ritmo sinusal normal"
 
     # --- SIMULACIÓN DEL HEATMAP ---
-    # Genera un array con valores de "importancia" aleatorios para la señal del ECG.
-    # Los valores más altos simularían las áreas donde el modelo "presta más atención".
     heatmap_data = np.random.rand(len(ecg_signal)) # Asume que ecg_signal es 1D y tiene longitud 1000
-    # Suavizar un poco los datos para que el heatmap no sea tan ruidoso
     heatmap_data = np.convolve(heatmap_data, np.ones(5)/5, mode='same')
-    # Normalizar entre 0 y 1
     heatmap_data = (heatmap_data - heatmap_data.min()) / (heatmap_data.max() - heatmap_data.min())
     # --- FIN SIMULACIÓN DEL HEATMAP ---
 
     return {"diagnostico": diagnostico_final, "analisis_detallado": reporte, "heatmap_data": heatmap_data}
 
+# --- NUEVAS FUNCIONES PARA EL ANÁLISIS REAL ---
+
+def interpret_model_output(prediction):
+    """
+    Interpreta la salida numérica del modelo y la convierte en un diagnóstico.
+    """
+    class_names = ["Ritmo sinusal normal", "Infarto Agudo del Miocardio (IAM)", "Arritmia", "Bloqueo de Branca"]
+    
+    predicted_class_index = np.argmax(prediction)
+    diagnostico = class_names[predicted_class_index]
+    confidence = prediction[0][predicted_class_index]
+    
+    reporte = {
+        "Confianza del diagnóstico (%)": f"{confidence * 100:.2f}",
+        "Observaciones": f"Predicción del modelo: {diagnostico}"
+    }
+    
+    return {"diagnostico": diagnostico, "analisis_detallado": reporte}
+
+def generate_heatmap(model, data_processed):
+    """
+    Genera un mapa de calor real usando la técnica de Grad-CAM.
+    """
+    # Asegúrate de que tu modelo tenga una capa con el nombre "conv1d_1"
+    last_conv_layer = model.get_layer("conv1d_1")
+    
+    grad_model = tf.keras.models.Model(
+        [model.inputs], [last_conv_layer.output, model.output]
+    )
+    
+    with tf.GradientTape() as tape:
+        last_conv_layer_output, preds = grad_model(data_processed)
+        pred_index = tf.argmax(preds[0])
+        class_channel = preds[:, pred_index]
+        
+    grads = tape.gradient(class_channel, last_conv_layer_output)
+    
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1))
+    
+    last_conv_layer_output = last_conv_layer_output[0]
+    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
+
+    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    
+    heatmap = np.interp(np.linspace(0, 1, 1000), np.linspace(0, 1, len(heatmap)), heatmap)
+    
+    return heatmap.numpy()
+
 def process_ecg_image(image_bytes):
     """
     Lee una imagen de ECG, la convierte en una señal numérica y la normaliza.
-    
-    Este es un ejemplo simplificado. Una solución para producción requeriría
-    técnicas de visión por computadora más avanzadas para manejar distintos formatos,
-    ruidos y estilos de cuadrículas de ECG.
     """
     try:
         # Paso 1: Leer la imagen desde los bytes
         image = Image.open(image_bytes)
-        
-        # Paso 2: Convertir a escala de grises y a un array de NumPy
-        # Convierte a RGB primero para asegurar consistencia antes de pasar a gris
         rgb_image = image.convert('RGB')
         gray_image = cv2.cvtColor(np.array(rgb_image), cv2.COLOR_RGB2GRAY)
         
-        # Paso 3: Aplicar umbral para aislar la línea de la señal
-        # Se asume un fondo claro y líneas oscuras (ECG tradicional)
+        # Paso 2: Aplicar umbral
         _, signal_line = cv2.threshold(gray_image, 150, 255, cv2.THRESH_BINARY_INV) 
         
-        # Paso 4: Encontrar las coordenadas Y de la señal
+        # Paso 3: Extraer la señal
         signal = []
-        # Para cada columna (punto en el tiempo)
         for col in range(signal_line.shape[1]):
-            # Encuentra los píxeles blancos (señal)
             coords = np.where(signal_line[:, col] > 0)[0]
             if len(coords) > 0:
-                # Usa la mediana de las coordenadas si hay varios puntos (línea gruesa)
                 signal.append(np.median(coords))
             else:
-                # Si no hay señal, interpola o usa el último valor conocido
-                signal.append(signal[-1] if signal else gray_image.shape[0] / 2) # Centro vertical
+                signal.append(signal[-1] if signal else gray_image.shape[0] / 2)
         
-        # Paso 5: Convertir a un array de NumPy y normalizar
         signal_array = np.array(signal, dtype=np.float32)
-        
-        # Normalizar la señal para que los valores estén en un rango similar
-        # Esto es importante si el modelo espera un rango específico de entrada
-        signal_array = (signal_array - signal_array.min()) / (signal_array.max() - signal_array.min()) * 2 - 1 # Rango de -1 a 1
+        signal_array = (signal_array - signal_array.min()) / (signal_array.max() - signal_array.min()) * 2 - 1
 
-        # Ajustar al tamaño requerido de 1000 muestras
         if len(signal_array) > 1000:
-            # Submuestreo si es demasiado largo
             signal_array = signal_array[np.linspace(0, len(signal_array)-1, 1000).astype(int)]
         elif len(signal_array) < 1000:
-            # Relleno si es demasiado corto
             padding = np.zeros(1000 - len(signal_array))
             signal_array = np.concatenate((signal_array, padding))
         
@@ -236,7 +262,7 @@ def predict_with_model(data, model, file_type):
     if model:
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         try:
-            if file_type in ["image/png", "image/jpeg", "image/jpg"]:
+            if file_type in ["image/png", "image/jpeg", "image/jpg", "image/unknown_url_image"]:
                 data_numpy = process_ecg_image(data)
                 if data_numpy is None:
                     return None
@@ -249,27 +275,28 @@ def predict_with_model(data, model, file_type):
             else:
                 data_numpy = np.array(data)
 
-            # Asegúrate de que data_numpy tenga la longitud esperada por el modelo (1000)
             if data_numpy.shape[0] != 1000:
                 st.error(f"La señal de ECG preprocesada tiene una longitud incorrecta ({data_numpy.shape[0]}). Se esperaba 1000.")
                 return None
 
-            required_shape = model.input_shape[1:] # Asumiendo (1000, 1)
-
-            # Reestructurar para el modelo (batch_size, timesteps, features)
+            required_shape = model.input_shape[1:]
             data_processed = data_numpy.reshape(1, *required_shape)
             
-            # Normalización final para el modelo si no se hizo antes o se requiere diferente
-            # data_processed = (data_processed - np.mean(data_processed)) / np.std(data_processed)
+            # --- Aquí está la nueva lógica para la predicción real ---
+            # 1. Realiza la predicción del modelo
+            prediction = model.predict(data_processed)
+            
+            # 2. Genera el heatmap real
+            heatmap_data = generate_heatmap(model, data_processed)
 
-            # Aquí es donde se llamaría al modelo real si no fuera una simulación.
-            # prediction = model.predict(data_processed)
-            # results = process_real_prediction(prediction)
-
-            # Por ahora, usamos la simulación
-            results = analyze_ecg_details(data_numpy) # Pasa data_numpy para que la simulación de heatmap use la longitud correcta
+            # 3. Interpreta la predicción del modelo y obtén el reporte
+            results = interpret_model_output(prediction)
+            
+            # 4. Combina los resultados y los datos del heatmap en un solo diccionario
+            results["heatmap_data"] = heatmap_data
 
             return results
+            # --- Fin de la nueva lógica ---
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
@@ -327,17 +354,15 @@ with col1:
                 response = requests.get(url_input)
                 response.raise_for_status()
                 source_file = BytesIO(response.content)
-                # Intenta inferir el tipo de archivo de la URL
                 if 'png' in url_input.lower():
                     file_type = 'image/png'
                 elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
                     file_type = 'image/jpeg'
                 else:
-                    # Si no se puede inferir, intentar abrirlo con PIL para confirmar que es una imagen
                     try:
                         Image.open(source_file).verify()
-                        source_file.seek(0) # Rebobinar después de verify()
-                        file_type = 'image/unknown_url_image' # O un tipo más genérico
+                        source_file.seek(0)
+                        file_type = 'image/unknown_url_image'
                     except:
                         st.error("La URL no parece ser una imagen válida.")
                         source_file = None
@@ -365,7 +390,7 @@ with col1:
                     if file_type in ["text/csv", "text/plain"]:
                         data = pd.read_csv(source_file)
                     elif file_type in ["image/png", "image/jpeg", "image/jpg", "image/unknown_url_image"]:
-                        data = source_file # Pasar el objeto de bytes de archivo para que la función de procesamiento lo maneje
+                        data = source_file
                     else:
                         st.warning("Tipo de archivo no soportado para análisis.")
                         data = None
@@ -395,48 +420,30 @@ with col2:
             
             st.subheader("ECG Subido con Heatmap")
             
-            # Necesitamos recargar la imagen original para superponer el heatmap
             uploaded_image_bytes = st.session_state['last_uploaded_file']
-            uploaded_image_bytes.seek(0) # Rebobinar el buffer de bytes
+            uploaded_image_bytes.seek(0)
             original_image = Image.open(uploaded_image_bytes).convert('RGB')
             original_image_np = np.array(original_image)
             
-            # La señal extraída ya está en 'results' si se pasó a analyze_ecg_details
-            # Pero necesitamos la señal original del procesamiento de la imagen para el heatmap
-            processed_signal_for_heatmap = results['heatmap_data'] # Ahora heatmap_data es la señal de ECG
+            heatmap_data = results['heatmap_data']
             
-            # Crea una figura de matplotlib
             fig, ax = plt.subplots(figsize=(10, 4))
-            ax.imshow(original_image_np, aspect='auto') # Muestra la imagen de fondo
+            ax.imshow(original_image_np, aspect='auto')
             
-            # Superponer el heatmap: Necesitamos mapear los datos 1D del heatmap a las dimensiones de la imagen
-            # Esto es una simulación. En un caso real, el heatmap tendría la misma longitud que la señal extraída.
-            # Para fines de visualización, lo mapeamos al ancho de la imagen.
             heatmap_display = np.interp(np.linspace(0, 1, original_image_np.shape[1]), 
-                                        np.linspace(0, 1, len(processed_signal_for_heatmap)), 
-                                        processed_signal_for_heatmap)
+                                        np.linspace(0, 1, len(heatmap_data)), 
+                                        heatmap_data)
             
-            # Crear un mapa de colores para el heatmap (ej. de azul a rojo)
-            cmap = plt.cm.get_cmap('hot') # Puedes cambiar 'hot' por 'viridis', 'jet', etc.
+            cmap = plt.cm.get_cmap('hot')
             
-            # Crear una "máscara" del heatmap transparente
             heatmap_mask = np.zeros_like(original_image_np[:,:,0], dtype=float)
-            # Asignar valores del heatmap a una fila central para la visualización simplificada
             center_row = original_image_np.shape[0] // 2
             heatmap_mask[center_row-10:center_row+10, :] = np.tile(heatmap_display, (20,1))
             
-            # Ajustar la opacidad (alpha) del heatmap
             ax.imshow(heatmap_mask, cmap=cmap, alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
             
-            ax.set_axis_off() # Ocultar ejes
+            ax.set_axis_off()
             st.pyplot(fig)
-            
-            # Guardar la figura en la sesión para que se muestre como imagen
-            # import io
-            # buf = io.BytesIO()
-            # plt.savefig(buf, format="png", bbox_inches='tight', pad_inches=0)
-            # st.image(buf.getvalue(), caption="ECG con Heatmap", use_container_width=True)
-            # buf.close()
             
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
@@ -454,5 +461,5 @@ with col2:
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
     else:
-        st.subheader("Resultados del análisis:")
+        st.subheader("Results of analysis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el reporte.")
