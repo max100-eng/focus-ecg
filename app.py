@@ -162,7 +162,7 @@ def analyze_ecg_details(ecg_signal):
         diagnostico_final = "Ritmo sinusal normal"
 
     # --- SIMULACIÓN DEL HEATMAP ---
-    heatmap_data = np.random.rand(len(ecg_signal)) # Asume que ecg_signal es 1D y tiene longitud 1000
+    heatmap_data = np.random.rand(len(ecg_signal))
     heatmap_data = np.convolve(heatmap_data, np.ones(5)/5, mode='same')
     heatmap_data = (heatmap_data - heatmap_data.min()) / (heatmap_data.max() - heatmap_data.min())
     # --- FIN SIMULACIÓN DEL HEATMAP ---
@@ -283,20 +283,13 @@ def predict_with_model(data, model, file_type):
             data_processed = data_numpy.reshape(1, *required_shape)
             
             # --- Lógica de predicción real ---
-            # 1. Asegura que el modelo se inicialice haciendo una predicción
             prediction = model.predict(data_processed)
-            
-            # 2. Ahora que el modelo está "construido", genera el heatmap
             heatmap_data = generate_heatmap(model, data_processed)
-            
-            # 3. Interpreta la predicción del modelo y obtén el reporte
             results = interpret_model_output(prediction)
-            
-            # 4. Combina los resultados y los datos del heatmap
             results["heatmap_data"] = heatmap_data
-
+            
             return results
-            # --- Fin de la lógica corregida ---
+            # --- Fin de la lógica ---
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
@@ -305,9 +298,6 @@ def predict_with_model(data, model, file_type):
     else:
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
-            st.error(f"Error durante la predicción con el modelo: {e}")
-            return None
-            
 
 # Carga del modelo global
 ecg_model = load_ecg_model()
@@ -466,3 +456,9 @@ with col2:
     else:
         st.subheader("Results of analysis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el reporte.")
+
+
+
+
+
+
