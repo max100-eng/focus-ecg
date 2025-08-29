@@ -17,38 +17,77 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom theme with JavaScript and updated CSS classes
+# --- INICIO: CÓDIGO CSS MEJORADO PARA LEGIBILIDAD ---
+# Usa un estilo mejorado para garantizar un alto contraste.
 custom_theme_script = """
 <style>
-    /* Estilos del tema oscuro */
+    /* Estilos generales del tema oscuro */
     body {
-        background-color: #0E1117;
-        color: #FAFAFA;
+        background-color: #0E1117; /* Fondo principal oscuro */
+        color: #C8C9D0; /* Texto claro pero con buen contraste */
+        font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     }
     .stApp {
         background-color: #0E1117;
     }
     .st-emotion-cache-1cpx96v { /* Sidebar */
-        background-color: #262730;
+        background-color: #1F2228;
     }
     h1, h2, h3, h4, h5, h6 {
-        color: #FAFAFA;
+        color: #FFFFFF; /* Títulos en blanco puro para que resalten */
     }
     .stButton>button {
-        background-color: #4F8BF9;
+        background-color: #007BFF; /* Azul de botón más estándar y visible */
         color: white;
+        border-radius: 5px;
     }
-    .st-emotion-cache-12fmw6v, .st-emotion-cache-1r6chqg {
+    .st-emotion-cache-12fmw6v, .st-emotion-cache-1r6chqg { /* Contenedores principales */
         background-color: #0E1117;
     }
-    /* Ocultar el menú de Streamlit y el pie de página */
+    /* Ocultar el menú y el pie de página de Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    
+    /* Estilo para el aviso importante, mejorando el contraste */
+    .important-notice-box {
+        background-color: #2F2F1C;
+        border-left: 5px solid #FFD700;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 20px;
+    }
+    .important-notice-box h5, .important-notice-box p {
+        color: #FFD700;
+    }
+    
+    /* Estilo para el recuadro de resultados */
+    .st-emotion-cache-10q270i {
+        background-color: #1A1A1A;
+        border-radius: 8px;
+        padding: 20px;
+    }
+    .st-emotion-cache-1n76qlr {
+        background-color: #1A1A1A;
+    }
+    
+    /* Estilo del recuadro con borde rojo para la imagen */
+    .red-border {
+        border: 4px solid #FF4B4B;
+        border-radius: 5px;
+        padding: 5px;
+    }
+    
+    /* Mejorar la legibilidad de la tabla */
+    .dataframe th, .dataframe td {
+        background-color: #1A1A1A;
+        color: #C8C9D0;
+    }
+    
 </style>
 """
 
 st.markdown(custom_theme_script, unsafe_allow_html=True)
-
+# --- FIN: CÓDIGO CSS MEJORADO PARA LEGIBILIDAD ---
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
@@ -64,7 +103,6 @@ def load_ecg_model():
     Asegúrate de que tu archivo de modelo ('modelo_ecg.h5') esté en la misma carpeta.
     """
     try:
-        # Aquí se carga el modelo de TensorFlow
         model = keras.models.load_model('modelo_ecg.h5')
         st.info("Modelo de TensorFlow cargado exitosamente.")
         return model
@@ -132,11 +170,9 @@ def predict_with_model(data, model, file_type):
     if model:
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         try:
-            # Si el archivo es una imagen, se usan datos de ejemplo
             if file_type in ["image/png", "image/jpeg", "image/jpg"]:
                 data_numpy = np.random.randn(1000)
             elif isinstance(data, pd.DataFrame):
-                # Suponiendo que la columna con la señal ECG se llama 'ECG_signal'
                 if 'ECG_signal' in data.columns:
                     data_numpy = data['ECG_signal'].values
                 else:
@@ -145,7 +181,6 @@ def predict_with_model(data, model, file_type):
             else:
                 data_numpy = np.array(data)
 
-            # --- PASO 1: Preprocesamiento de los datos ---
             required_shape = model.input_shape[1:]
             
             if len(data_numpy) > required_shape[0]:
@@ -158,13 +193,7 @@ def predict_with_model(data, model, file_type):
 
             data_processed = (data_processed - np.mean(data_processed)) / np.std(data_processed)
             data_processed = data_processed.reshape(1, *required_shape)
-
-            # --- PASO 2: Predicción ---
-            # La predicción del modelo real se usaría aquí para un diagnóstico.
-            # prediction = model.predict(data_processed)
-            # st.write("Resultado de la predicción (probabilidades):", prediction)
             
-            # --- Simulación de un análisis detallado ---
             return analyze_ecg_details(data_processed)
 
         except Exception as e:
@@ -175,7 +204,6 @@ def predict_with_model(data, model, file_type):
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 
-# Cargar el modelo de IA al iniciar la aplicación
 ecg_model = load_ecg_model()
 
 # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
@@ -188,15 +216,9 @@ with col1:
     st.write("La IA te proporcionará un resumen detallado y las mediciones principales.")
     
     st.markdown("""
-        <div style="
-            background-color: #362f1c;
-            border-left: 5px solid #ffcc00;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 20px;
-        ">
-        <h5 style="color: #ffcc00; margin: 0;">AVISO IMPORTANTE:</h5>
-        <p style="color: #ffcc00; margin-top: 5px;">
+        <div class="important-notice-box">
+        <h5 style="color: #FFD700; margin: 0;">AVISO IMPORTANTE:</h5>
+        <p style="color: #FFD700; margin-top: 5px;">
         Este análisis es **solo para fines informativos** y no constituye un diagnóstico médico.
         Siempre consulta a un profesional de la salud calificado para una interpretación precisa
         de cualquier dato médico.
@@ -206,7 +228,6 @@ with col1:
 
     st.subheader("Subir ECG")
     
-    # Opciones de subida de archivos (solo en escritorio)
     uploaded_file = st.file_uploader(
         "Sube un archivo ECG",
         type=['csv', 'txt', 'png', 'jpg', 'jpeg']
@@ -214,13 +235,12 @@ with col1:
     
     url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
-    # Opciones de cámara (solo en móvil)
-    camera_file = st.camera_input("...o toma una foto")
+    # --- INICIO: CÓDIGO ELIMINADO PARA LA CÁMARA ---
+    # La línea para st.camera_input fue eliminada.
+    # --- FIN: CÓDIGO ELIMINADO PARA LA CÁMARA ---
 
-    # Botón para iniciar el análisis
     analyze_button = st.button("Analizar")
 
-    # Procesar la entrada
     if analyze_button:
         source_file = None
         file_type = None
@@ -230,16 +250,15 @@ with col1:
             source_file = uploaded_file
             file_type = uploaded_file.type
             file_name = uploaded_file.name
-        elif camera_file:
-            source_file = camera_file
-            file_type = camera_file.type
-            file_name = "Foto de la cámara"
+        # elif camera_file:
+        #     source_file = camera_file
+        #     file_type = camera_file.type
+        #     file_name = "Foto de la cámara"
         elif url_input:
             try:
                 response = requests.get(url_input)
-                response.raise_for_status()  # Check if the request was successful
+                response.raise_for_status()
                 source_file = BytesIO(response.content)
-                # Guess the file type from the URL
                 if 'png' in url_input.lower():
                     file_type = 'image/png'
                 elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
@@ -254,7 +273,6 @@ with col1:
                 file_type = None
 
         if source_file is not None:
-            # Guardar el archivo subido en el estado de la sesión
             st.session_state['last_uploaded_file'] = source_file
             st.session_state['last_uploaded_file_type'] = file_type
             st.session_state['last_file_name'] = file_name
@@ -266,11 +284,9 @@ with col1:
                 
                 try:
                     data = None
-                    
                     if file_type in ["text/csv", "text/plain"]:
                         data = pd.read_csv(source_file)
                     elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
-                        # Los datos de la imagen se simulan para la predicción
                         data = np.random.randn(1000)
                     else:
                         st.warning("Tipo de archivo no soportado para análisis.")
@@ -297,7 +313,6 @@ with col2:
         results = st.session_state['results']
 
         if 'last_uploaded_file_type' in st.session_state and st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg", "image/jpg"]:
-            # Display the uploaded image with a red border
             st.subheader("ECG Subido")
             st.markdown('<div class="red-border">', unsafe_allow_html=True)
             st.image(st.session_state['last_uploaded_file'], caption=st.session_state.get('last_file_name', 'Archivo ECG'), use_container_width=True)
@@ -306,14 +321,18 @@ with col2:
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
-        if "normal" in diagnostico.lower():
+        # --- INICIO: CÓDIGO MODIFICADO PARA EL DIAGNÓSTICO ---
+        if diagnostico == "Infarto Agudo del Miocardio (IAM)":
+            st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
+            st.warning("Busque **ATENCIÓN MÉDICA DE URGENCIA** de inmediato. Este resultado sugiere un posible evento cardíaco grave.")
+        elif "normal" in diagnostico.lower():
             st.success(diagnostico)
         else:
-            st.error(diagnostico)
+            st.warning(diagnostico)
+        # --- FIN: CÓDIGO MODIFICADO PARA EL DIAGNÓSTICO ---
             
         st.subheader("Análisis Detallado de Elementos del ECG")
         
-        # Mostrar el reporte detallado en una tabla
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
     else:
