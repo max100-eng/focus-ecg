@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import os
+st.write(f"Ruta de trabajo actual: {os.getcwd()}")
+st.write(f"Contenido de la carpeta: {os.listdir('.')}")
 import streamlit as st
 import numpy as np
 import pandas as pd
