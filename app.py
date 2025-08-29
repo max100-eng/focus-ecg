@@ -305,7 +305,6 @@ def predict_with_model(data, model, file_type):
     else:
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
-
 # Carga del modelo global
 ecg_model = load_ecg_model()
 
