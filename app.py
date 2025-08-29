@@ -254,6 +254,7 @@ def process_ecg_image(image_bytes):
     except Exception as e:
         st.error(f"Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
+
     def predict_with_model(data, model, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
@@ -281,21 +282,14 @@ def process_ecg_image(image_bytes):
             required_shape = model.input_shape[1:]
             data_processed = data_numpy.reshape(1, *required_shape)
             
-            # --- CORRECCIÓN: Lógica para la predicción real ---
-            # Asegura que el modelo se inicialice antes de generar el heatmap
+            # --- Lógica de predicción real ---
             prediction = model.predict(data_processed)
-            
-            # Genera el heatmap real
             heatmap_data = generate_heatmap(model, data_processed)
-
-            # Interpreta la predicción del modelo y obtén el reporte
             results = interpret_model_output(prediction)
-            
-            # Combina los resultados y los datos del heatmap en un solo diccionario
             results["heatmap_data"] = heatmap_data
-
+            
             return results
-            # --- Fin de la lógica corregida ---
+            # --- Fin de la lógica ---
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
@@ -305,16 +299,14 @@ def process_ecg_image(image_bytes):
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 
-     
+    # Carga del modelo global
+    ecg_model = load_ecg_model()
 
-# Carga del modelo global
-ecg_model = load_ecg_model()
+    # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
 
-# --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
+    col1, col2 = st.columns([1, 1.5])
 
-col1, col2 = st.columns([1, 1.5])
-
-with col1:
+    with col1:
     st.header("Análisis de ECG")
     st.write("Sube una imagen o usa la URL de un electrocardiograma.")
     st.write("La IA te proporcionará un resumen detallado, las mediciones principales y un mapa de calor (heatmap).")
