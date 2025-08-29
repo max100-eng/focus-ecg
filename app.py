@@ -255,7 +255,7 @@ def process_ecg_image(image_bytes):
         st.error(f"Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-    def predict_with_model(data, model, file_type):
+def predict_with_model(data, model, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
     """
@@ -299,14 +299,14 @@ def process_ecg_image(image_bytes):
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 
-    # Carga del modelo global
-    ecg_model = load_ecg_model()
+# Carga del modelo global
+ecg_model = load_ecg_model()
 
-    # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
+# --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
 
-    col1, col2 = st.columns([1, 1.5])
+col1, col2 = st.columns([1, 1.5])
 
-    with col1:
+with col1:
     st.header("Análisis de ECG")
     st.write("Sube una imagen o usa la URL de un electrocardiograma.")
     st.write("La IA te proporcionará un resumen detallado, las mediciones principales y un mapa de calor (heatmap).")
