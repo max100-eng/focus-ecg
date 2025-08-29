@@ -282,21 +282,21 @@ def predict_with_model(data, model, file_type):
             required_shape = model.input_shape[1:]
             data_processed = data_numpy.reshape(1, *required_shape)
             
-            # --- Aquí está la nueva lógica para la predicción real ---
-            # 1. Realiza la predicción del modelo
+            # --- CORRECCIÓN: Lógica para la predicción real ---
+            # Asegura que el modelo se inicialice antes de generar el heatmap
             prediction = model.predict(data_processed)
             
-            # 2. Genera el heatmap real
+            # Genera el heatmap real
             heatmap_data = generate_heatmap(model, data_processed)
 
-            # 3. Interpreta la predicción del modelo y obtén el reporte
+            # Interpreta la predicción del modelo y obtén el reporte
             results = interpret_model_output(prediction)
             
-            # 4. Combina los resultados y los datos del heatmap en un solo diccionario
+            # Combina los resultados y los datos del heatmap en un solo diccionario
             results["heatmap_data"] = heatmap_data
 
             return results
-            # --- Fin de la nueva lógica ---
+            # --- Fin de la lógica corregida ---
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
@@ -305,6 +305,8 @@ def predict_with_model(data, model, file_type):
     else:
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
+
+     
 
 # Carga del modelo global
 ecg_model = load_ecg_model()
