@@ -282,14 +282,21 @@ def predict_with_model(data, model, file_type):
             required_shape = model.input_shape[1:]
             data_processed = data_numpy.reshape(1, *required_shape)
             
-            # --- Lógica de predicción real ---
+            # --- CORRECCIÓN: Lógica para la predicción real ---
+            # 1. Asegura que el modelo se inicialice haciendo una predicción
             prediction = model.predict(data_processed)
-            heatmap_data = generate_heatmap(model, data_processed)
-            results = interpret_model_output(prediction)
-            results["heatmap_data"] = heatmap_data
             
+            # 2. Ahora que el modelo está "construido", genera el heatmap
+            heatmap_data = generate_heatmap(model, data_processed)
+            
+            # 3. Interpreta la predicción del modelo y obtén el reporte
+            results = interpret_model_output(prediction)
+            
+            # 4. Combina los resultados y los datos del heatmap
+            results["heatmap_data"] = heatmap_data
+
             return results
-            # --- Fin de la lógica ---
+            # --- Fin de la lógica corregida ---
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
