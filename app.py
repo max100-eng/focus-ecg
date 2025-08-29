@@ -20,7 +20,6 @@ st.set_page_config(
 )
 
 # --- INICIO: CÓDIGO CSS MEJORADO PARA LEGIBILIDAD ---
-# Usa un estilo mejorado para garantizar un alto contraste.
 custom_theme_script = """
 <style>
     /* Estilos generales del tema oscuro */
@@ -97,7 +96,6 @@ st.markdown("---")
 
 # --- FUNCIONES DE ANÁLISIS ---
 
-# Función para cargar y predecir con el modelo de TensorFlow
 @st.cache_resource
 def load_ecg_model():
     """
@@ -109,13 +107,13 @@ def load_ecg_model():
         st.info("Modelo de TensorFlow cargado exitosamente.")
         return model
     except Exception as e:
-        st.error(f"Error al cargar el modelo: {e}")
+        st.error(f"Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg.h5' esté en la misma carpeta y sea accesible.")
         return None
 
 def analyze_ecg_details(ecg_signal):
     """
     Simula un análisis detallado de los elementos del ECG basado en datos numéricos.
-    Esta función es solo para fines de demostración.
+    Esta función también genera datos simulados para un heatmap.
     """
     # Valores aleatorios que simulan un análisis del modelo
     pr_interval = random.uniform(0.12, 0.22)
@@ -163,7 +161,17 @@ def analyze_ecg_details(ecg_signal):
     else:
         diagnostico_final = "Ritmo sinusal normal"
 
-    return {"diagnostico": diagnostico_final, "analisis_detallado": reporte}
+    # --- SIMULACIÓN DEL HEATMAP ---
+    # Genera un array con valores de "importancia" aleatorios para la señal del ECG.
+    # Los valores más altos simularían las áreas donde el modelo "presta más atención".
+    heatmap_data = np.random.rand(len(ecg_signal)) # Asume que ecg_signal es 1D y tiene longitud 1000
+    # Suavizar un poco los datos para que el heatmap no sea tan ruidoso
+    heatmap_data = np.convolve(heatmap_data, np.ones(5)/5, mode='same')
+    # Normalizar entre 0 y 1
+    heatmap_data = (heatmap_data - heatmap_data.min()) / (heatmap_data.max() - heatmap_data.min())
+    # --- FIN SIMULACIÓN DEL HEATMAP ---
+
+    return {"diagnostico": diagnostico_final, "analisis_detallado": reporte, "heatmap_data": heatmap_data}
 
 def process_ecg_image(image_bytes):
     """
@@ -178,37 +186,47 @@ def process_ecg_image(image_bytes):
         image = Image.open(image_bytes)
         
         # Paso 2: Convertir a escala de grises y a un array de NumPy
-        gray_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
+        # Convierte a RGB primero para asegurar consistencia antes de pasar a gris
+        rgb_image = image.convert('RGB')
+        gray_image = cv2.cvtColor(np.array(rgb_image), cv2.COLOR_RGB2GRAY)
         
         # Paso 3: Aplicar umbral para aislar la línea de la señal
-        _, signal_line = cv2.threshold(gray_image, 100, 255, cv2.THRESH_BINARY_INV)
+        # Se asume un fondo claro y líneas oscuras (ECG tradicional)
+        _, signal_line = cv2.threshold(gray_image, 150, 255, cv2.THRESH_BINARY_INV) 
         
         # Paso 4: Encontrar las coordenadas Y de la señal
-        # Procesamos la imagen columna por columna para extraer la señal
         signal = []
+        # Para cada columna (punto en el tiempo)
         for col in range(signal_line.shape[1]):
-            # Encontrar la coordenada Y del primer píxel negro (la señal)
+            # Encuentra los píxeles blancos (señal)
             coords = np.where(signal_line[:, col] > 0)[0]
             if len(coords) > 0:
-                signal.append(coords[0])
+                # Usa la mediana de las coordenadas si hay varios puntos (línea gruesa)
+                signal.append(np.median(coords))
             else:
-                # Si no se encuentra señal, usar el valor anterior o un marcador de posición
-                signal.append(signal[-1] if signal else 0)
-
+                # Si no hay señal, interpola o usa el último valor conocido
+                signal.append(signal[-1] if signal else gray_image.shape[0] / 2) # Centro vertical
+        
         # Paso 5: Convertir a un array de NumPy y normalizar
         signal_array = np.array(signal, dtype=np.float32)
         
+        # Normalizar la señal para que los valores estén en un rango similar
+        # Esto es importante si el modelo espera un rango específico de entrada
+        signal_array = (signal_array - signal_array.min()) / (signal_array.max() - signal_array.min()) * 2 - 1 # Rango de -1 a 1
+
         # Ajustar al tamaño requerido de 1000 muestras
         if len(signal_array) > 1000:
-            signal_array = signal_array[:1000]
+            # Submuestreo si es demasiado largo
+            signal_array = signal_array[np.linspace(0, len(signal_array)-1, 1000).astype(int)]
         elif len(signal_array) < 1000:
+            # Relleno si es demasiado corto
             padding = np.zeros(1000 - len(signal_array))
             signal_array = np.concatenate((signal_array, padding))
-            
+        
         return signal_array
         
     except Exception as e:
-        st.error(f"Error en el procesamiento de la imagen: {e}")
+        st.error(f"Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
 def predict_with_model(data, model, file_type):
@@ -219,7 +237,6 @@ def predict_with_model(data, model, file_type):
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         try:
             if file_type in ["image/png", "image/jpeg", "image/jpg"]:
-                # Usar la nueva función para procesar la imagen y obtener la señal
                 data_numpy = process_ecg_image(data)
                 if data_numpy is None:
                     return None
@@ -232,24 +249,27 @@ def predict_with_model(data, model, file_type):
             else:
                 data_numpy = np.array(data)
 
-            required_shape = model.input_shape[1:]
-            
-            if len(data_numpy) > required_shape[0]:
-                data_processed = data_numpy[:required_shape[0]]
-            elif len(data_numpy) < required_shape[0]:
-                padding = np.zeros(required_shape[0] - len(data_numpy))
-                data_processed = np.concatenate((data_numpy, padding))
-            else:
-                data_processed = data_numpy
+            # Asegúrate de que data_numpy tenga la longitud esperada por el modelo (1000)
+            if data_numpy.shape[0] != 1000:
+                st.error(f"La señal de ECG preprocesada tiene una longitud incorrecta ({data_numpy.shape[0]}). Se esperaba 1000.")
+                return None
 
-            data_processed = (data_processed - np.mean(data_processed)) / np.std(data_processed)
-            data_processed = data_processed.reshape(1, *required_shape)
+            required_shape = model.input_shape[1:] # Asumiendo (1000, 1)
+
+            # Reestructurar para el modelo (batch_size, timesteps, features)
+            data_processed = data_numpy.reshape(1, *required_shape)
             
-            # Aquí es donde se pasaría la predicción real del modelo en lugar de la simulación
+            # Normalización final para el modelo si no se hizo antes o se requiere diferente
+            # data_processed = (data_processed - np.mean(data_processed)) / np.std(data_processed)
+
+            # Aquí es donde se llamaría al modelo real si no fuera una simulación.
             # prediction = model.predict(data_processed)
-            # return process_prediction(prediction)
+            # results = process_real_prediction(prediction)
 
-            return analyze_ecg_details(data_processed)
+            # Por ahora, usamos la simulación
+            results = analyze_ecg_details(data_numpy) # Pasa data_numpy para que la simulación de heatmap use la longitud correcta
+
+            return results
 
         except Exception as e:
             st.error(f"Error durante la predicción con el modelo: {e}")
@@ -268,14 +288,14 @@ col1, col2 = st.columns([1, 1.5])
 
 with col1:
     st.header("Análisis de ECG")
-    st.write("Sube una imagen o usa la cámara para analizar un electrocardiograma.")
-    st.write("La IA te proporcionará un resumen detallado y las mediciones principales.")
+    st.write("Sube una imagen o usa la URL de un electrocardiograma.")
+    st.write("La IA te proporcionará un resumen detallado, las mediciones principales y un mapa de calor (heatmap).")
     
     st.markdown("""
         <div class="important-notice-box">
         <h5 style="color: #FFD700; margin: 0;">AVISO IMPORTANTE:</h5>
         <p style="color: #FFD700; margin-top: 5px;">
-        Este análisis es **solo para fines informativos** y no constituye un diagnóstico médico.
+        Este análisis es **solo para fines informativos y de demostración** y no constituye un diagnóstico médico.
         Siempre consulta a un profesional de la salud calificado para una interpretación precisa
         de cualquier dato médico.
         </p>
@@ -307,14 +327,24 @@ with col1:
                 response = requests.get(url_input)
                 response.raise_for_status()
                 source_file = BytesIO(response.content)
+                # Intenta inferir el tipo de archivo de la URL
                 if 'png' in url_input.lower():
                     file_type = 'image/png'
                 elif 'jpg' in url_input.lower() or 'jpeg' in url_input.lower():
                     file_type = 'image/jpeg'
                 else:
-                    file_type = 'image/unknown'
+                    # Si no se puede inferir, intentar abrirlo con PIL para confirmar que es una imagen
+                    try:
+                        Image.open(source_file).verify()
+                        source_file.seek(0) # Rebobinar después de verify()
+                        file_type = 'image/unknown_url_image' # O un tipo más genérico
+                    except:
+                        st.error("La URL no parece ser una imagen válida.")
+                        source_file = None
+                        file_type = None
+
                 file_name = url_input
-                st.success("Imagen de URL cargada exitosamente!")
+                if source_file: st.success("Imagen de URL cargada exitosamente!")
             except requests.exceptions.RequestException as e:
                 st.error(f"Error al descargar la imagen de la URL: {e}")
                 source_file = None
@@ -334,7 +364,7 @@ with col1:
                     data = None
                     if file_type in ["text/csv", "text/plain"]:
                         data = pd.read_csv(source_file)
-                    elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
+                    elif file_type in ["image/png", "image/jpeg", "image/jpg", "image/unknown_url_image"]:
                         data = source_file # Pasar el objeto de bytes de archivo para que la función de procesamiento lo maneje
                     else:
                         st.warning("Tipo de archivo no soportado para análisis.")
@@ -360,12 +390,54 @@ with col2:
         st.subheader("Resultados del análisis:")
         results = st.session_state['results']
 
-        if 'last_uploaded_file_type' in st.session_state and st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg", "image/jpg"]:
-            st.subheader("ECG Subido")
-            st.markdown('<div class="red-border">', unsafe_allow_html=True)
-            st.image(st.session_state['last_uploaded_file'], caption=st.session_state.get('last_file_name', 'Archivo ECG'), use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
+        if 'last_uploaded_file_type' in st.session_state and \
+           st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg", "image/jpg", "image/unknown_url_image"]:
+            
+            st.subheader("ECG Subido con Heatmap")
+            
+            # Necesitamos recargar la imagen original para superponer el heatmap
+            uploaded_image_bytes = st.session_state['last_uploaded_file']
+            uploaded_image_bytes.seek(0) # Rebobinar el buffer de bytes
+            original_image = Image.open(uploaded_image_bytes).convert('RGB')
+            original_image_np = np.array(original_image)
+            
+            # La señal extraída ya está en 'results' si se pasó a analyze_ecg_details
+            # Pero necesitamos la señal original del procesamiento de la imagen para el heatmap
+            processed_signal_for_heatmap = results['heatmap_data'] # Ahora heatmap_data es la señal de ECG
+            
+            # Crea una figura de matplotlib
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.imshow(original_image_np, aspect='auto') # Muestra la imagen de fondo
+            
+            # Superponer el heatmap: Necesitamos mapear los datos 1D del heatmap a las dimensiones de la imagen
+            # Esto es una simulación. En un caso real, el heatmap tendría la misma longitud que la señal extraída.
+            # Para fines de visualización, lo mapeamos al ancho de la imagen.
+            heatmap_display = np.interp(np.linspace(0, 1, original_image_np.shape[1]), 
+                                        np.linspace(0, 1, len(processed_signal_for_heatmap)), 
+                                        processed_signal_for_heatmap)
+            
+            # Crear un mapa de colores para el heatmap (ej. de azul a rojo)
+            cmap = plt.cm.get_cmap('hot') # Puedes cambiar 'hot' por 'viridis', 'jet', etc.
+            
+            # Crear una "máscara" del heatmap transparente
+            heatmap_mask = np.zeros_like(original_image_np[:,:,0], dtype=float)
+            # Asignar valores del heatmap a una fila central para la visualización simplificada
+            center_row = original_image_np.shape[0] // 2
+            heatmap_mask[center_row-10:center_row+10, :] = np.tile(heatmap_display, (20,1))
+            
+            # Ajustar la opacidad (alpha) del heatmap
+            ax.imshow(heatmap_mask, cmap=cmap, alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
+            
+            ax.set_axis_off() # Ocultar ejes
+            st.pyplot(fig)
+            
+            # Guardar la figura en la sesión para que se muestre como imagen
+            # import io
+            # buf = io.BytesIO()
+            # plt.savefig(buf, format="png", bbox_inches='tight', pad_inches=0)
+            # st.image(buf.getvalue(), caption="ECG con Heatmap", use_container_width=True)
+            # buf.close()
+            
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
@@ -382,5 +454,5 @@ with col2:
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
     else:
-        st.subheader("Results of analysis:")
-        st.warning("Please upload and process an ECG file to view the report.")
+        st.subheader("Resultados del análisis:")
+        st.warning("Por favor, sube y procesa un archivo ECG para ver el reporte.")
