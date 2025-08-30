@@ -283,7 +283,7 @@ def predict_with_model(data, file_type):
             required_shape = ecg_model.input_shape[1:]
             data_processed = data_numpy.reshape(1, *required_shape)
             
-            # --- CORRECCIÓN: Lógica para la predicción real ---
+            # --- Lógica corregida: Primero la predicción, luego el heatmap ---
             prediction = ecg_model.predict(data_processed)
             
             heatmap_data = generate_heatmap(ecg_model, data_processed)
@@ -303,8 +303,6 @@ def predict_with_model(data, file_type):
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 
-# Carga del modelo global
-# ELIMINADO: ecg_model = load_ecg_model()
 
 # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
 
@@ -393,7 +391,6 @@ with col1:
                         data = None
 
                     if data is not None:
-                        # LLAMADA CORREGIDA: Ya no se pasa 'ecg_model'
                         results = predict_with_model(data, file_type)
                         
                         if results:
