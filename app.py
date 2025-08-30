@@ -255,11 +255,12 @@ def process_ecg_image(image_bytes):
         st.error(f"Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-def predict_with_model(data, model, file_type):
+def predict_with_model(data, file_type):
     """
     Realiza una predicción sobre los datos ECG usando el modelo.
     """
-    if model:
+    ecg_model = load_ecg_model()
+    if ecg_model:
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         try:
             if file_type in ["image/png", "image/jpeg", "image/jpg", "image/unknown_url_image"]:
@@ -279,20 +280,16 @@ def predict_with_model(data, model, file_type):
                 st.error(f"La señal de ECG preprocesada tiene una longitud incorrecta ({data_numpy.shape[0]}). Se esperaba 1000.")
                 return None
 
-            required_shape = model.input_shape[1:]
+            required_shape = ecg_model.input_shape[1:]
             data_processed = data_numpy.reshape(1, *required_shape)
             
             # --- CORRECCIÓN: Lógica para la predicción real ---
-            # 1. Asegura que el modelo se inicialice haciendo una predicción
-            prediction = model.predict(data_processed)
+            prediction = ecg_model.predict(data_processed)
             
-            # 2. Ahora que el modelo está "construido", genera el heatmap
-            heatmap_data = generate_heatmap(model, data_processed)
+            heatmap_data = generate_heatmap(ecg_model, data_processed)
             
-            # 3. Interpreta la predicción del modelo y obtén el reporte
             results = interpret_model_output(prediction)
             
-            # 4. Combina los resultados y los datos del heatmap
             results["heatmap_data"] = heatmap_data
 
             return results
@@ -305,8 +302,9 @@ def predict_with_model(data, model, file_type):
     else:
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
+
 # Carga del modelo global
-ecg_model = load_ecg_model()
+# ELIMINADO: ecg_model = load_ecg_model()
 
 # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
 
@@ -395,7 +393,8 @@ with col1:
                         data = None
 
                     if data is not None:
-                        results = predict_with_model(data, ecg_model, file_type)
+                        # LLAMADA CORREGIDA: Ya no se pasa 'ecg_model'
+                        results = predict_with_model(data, file_type)
                         
                         if results:
                             st.session_state['results'] = results
@@ -462,4 +461,3 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
-
