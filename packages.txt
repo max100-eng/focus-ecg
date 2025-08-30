@@ -1,10 +1,4 @@
-<<<<<<< HEAD
 libgl1-mesa-glx
 libsm6
 libxext6
-=======
-libgl1-mesa-glx
-libsm6
-libxext6
->>>>>>> 62e5e15770e48dcc8d68002713093fcdbf1d8f86
 libxrender1
