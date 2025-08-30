@@ -284,6 +284,7 @@ def predict_with_model(data, file_type):
             data_processed = data_numpy.reshape(1, *required_shape)
             
             # --- Lógica corregida: Primero la predicción, luego el heatmap ---
+            # Llamamos a predict para inicializar el modelo
             prediction = ecg_model.predict(data_processed)
             
             heatmap_data = generate_heatmap(ecg_model, data_processed)
@@ -467,9 +468,3 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
-
-
-
-
-
-
