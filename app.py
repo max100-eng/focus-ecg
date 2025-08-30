@@ -460,18 +460,6 @@ with col2:
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
     else:
-        st.subheader("Results of analysis:")
-        st.warning("Por favor, sube y procesa un archivo ECG para ver el reporte.")
-
-
-
-
-
-
-
-
-
-
-
-
+        st.subheader("Resultados del análisis:")
+        st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
 
