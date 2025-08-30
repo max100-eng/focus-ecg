@@ -293,9 +293,6 @@ def predict_with_model(data, file_type):
             results = interpret_model_output(prediction)
             
             results["heatmap_data"] = heatmap_data
-
-            # Añade una línea de depuración para ver el valor de 'results'
-            print("Valor de 'results' antes de devolver:", results)
             
             return results
             # --- Fin de la lógica corregida ---
@@ -398,7 +395,10 @@ with col1:
                     if data is not None:
                         results = predict_with_model(data, file_type)
                         
-                        # --- DEBUG: Comprueba si `results` es None antes de usarlo ---
+                        # --- VERIFICACIÓN DEPURACIÓN ---
+                        print("Valor de 'results' después de la predicción:", results)
+                        # --- FIN VERIFICACIÓN DEPURACIÓN ---
+
                         if results is not None:
                             st.session_state['results'] = results
                             st.session_state['processed'] = True
