@@ -99,11 +99,13 @@ st.markdown("---")
 @st.cache_resource
 def load_ecg_model():
     """
-    Carga el modelo de IA una sola vez.
-    Asegúrate de que tu archivo de modelo ('modelo_ecg.h5') esté en la misma carpeta.
+    Carga el modelo de IA una sola vez y lo construye para que sus capas sean accesibles.
     """
     try:
         model = keras.models.load_model('modelo_ecg.h5')
+        # Añade una entrada de ejemplo para construir el modelo
+        # Esto soluciona el error 'The layer sequential has never been called...'
+        model.build(input_shape=(None, 1000, 1)) 
         st.info("Modelo de TensorFlow cargado exitosamente.")
         return model
     except Exception as e:
@@ -284,7 +286,6 @@ def predict_with_model(data, file_type):
             data_processed = data_numpy.reshape(1, *required_shape)
             
             # --- Lógica corregida: Primero la predicción, luego el heatmap ---
-            # Llamamos a predict para inicializar el modelo
             prediction = ecg_model.predict(data_processed)
             
             heatmap_data = generate_heatmap(ecg_model, data_processed)
