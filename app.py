@@ -406,6 +406,15 @@ with col1:
                     st.session_state['processed'] = False
 
 with col2:
+    # --- CÓDIGO CORREGIDO PARA MOSTRAR LA IMAGEN ANTES DE LA PREDICCIÓN ---
+    if 'last_uploaded_file' in st.session_state and st.session_state['last_uploaded_file'] is not None:
+        st.subheader("ECG Subido")
+        uploaded_image_bytes = st.session_state['last_uploaded_file']
+        uploaded_image_bytes.seek(0)
+        st.image(uploaded_image_bytes, caption=st.session_state.get('last_file_name', 'ECG'))
+        st.markdown("---")
+        
+    # --- CÓDIGO PARA MOSTRAR LOS RESULTADOS SOLO SI EL ANÁLISIS FUE EXITOSO ---
     if 'processed' in st.session_state and st.session_state['processed']:
         st.subheader("Resultados del análisis:")
         results = st.session_state['results']
@@ -458,3 +467,9 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
+
+
+
+
+
+
