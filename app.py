@@ -38,13 +38,12 @@ st.markdown("---")
 def load_ecg_transfer_model():
     """Carga el modelo de aprendizaje por transferencia."""
     try:
-        model = keras.models.load_model('transfer_model.h5')
-        st.info("✅ Modelo de aprendizaje por transferencia cargado exitosamente.")
+        model = keras.models.load_model('modelo_ecg.h5')
+        st.info("✅ Modelo cargado exitosamente.")
         return model
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que 'transfer_model.h5' esté en la misma carpeta.")
+        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg.h5' esté en la misma carpeta.")
         return None
-
 def find_last_conv_layer(model):
     """Encuentra la última capa convolucional 2D."""
     for layer in reversed(model.layers):
