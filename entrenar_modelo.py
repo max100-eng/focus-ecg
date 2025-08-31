@@ -22,7 +22,7 @@ def load_and_preprocess_data_from_folders():
     try:
         # Asegúrate de que esta ruta apunte a tu carpeta principal de dataset.
         data_dir = 'C:/Users/maram/focus-ecg/focus-ecg/ECG_DATA' 
-focus-ecg
+#focus-ecg
         print("Cargando datos de entrenamiento...")
         train_dataset = tf.keras.utils.image_dataset_from_directory(
             directory=f'{data_dir}/train',
