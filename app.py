@@ -7,8 +7,6 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import requests
 from io import BytesIO
-import json
-import random
 import cv2
 from PIL import Image
 
@@ -99,7 +97,7 @@ st.markdown("---")
 @st.cache_resource
 def load_ecg_model():
     """
-    Carga el modelo de IA una sola vez y lo retorna.
+    Carga el modelo de IA una sola vez.
     """
     try:
         model = keras.models.load_model('modelo_ecg.h5')
@@ -120,8 +118,6 @@ def interpret_model_output(prediction):
     """
     Interpreta la salida numérica del modelo y la convierte en un diagnóstico.
     """
-    # Define tus nombres de clase aquí. Deben coincidir con el orden de las etiquetas
-    # que usaste para entrenar el modelo.
     class_names = ["Ritmo sinusal normal", "Infarto Agudo del Miocardio (IAM)", "Arritmia", "Bloqueo de Branca"]
     
     predicted_class_index = np.argmax(prediction)
@@ -170,31 +166,24 @@ def process_ecg_image(image_bytes):
     Lee una imagen de ECG, la convierte en una señal numérica, la redimensiona y la normaliza.
     """
     try:
-        # Paso 1: Leer la imagen desde los bytes
         image = Image.open(image_bytes).convert('RGB')
         gray_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
         
-        # Paso 2: Extraer la señal de la línea más oscura
-        # Encuentra los píxeles más oscuros por columna, lo que representa la señal
         signal = []
         for col in range(gray_image.shape[1]):
-            # Encuentra el índice de la fila con el valor de píxel mínimo (más oscuro)
             row_index = np.argmin(gray_image[:, col])
             signal.append(row_index)
 
         signal_array = np.array(signal, dtype=np.float32)
 
-        # Paso 3: Asegurar que la señal tenga la longitud de 1000
         if len(signal_array) > 1000:
             signal_array = signal_array[np.linspace(0, len(signal_array) - 1, 1000).astype(int)]
         elif len(signal_array) < 1000:
             padding = np.zeros(1000 - len(signal_array))
             signal_array = np.concatenate((signal_array, padding))
         
-        # Paso 4: Normalizar los datos
         signal_array = (signal_array - np.min(signal_array)) / (np.max(signal_array) - np.min(signal_array))
         
-        # El modelo espera una forma de (1000, 1), por lo que necesitamos un reshape final
         return signal_array.reshape(1000, 1)
 
     except Exception as e:
@@ -218,15 +207,14 @@ def predict_with_model(data, file_type):
             if data_processed is None:
                 return None
         else:
-            # Lógica para otros tipos de archivo, si es necesario.
             st.error("Tipo de archivo no soportado para este análisis.")
             return None
 
-        # --- LÓGICA CORREGIDA ---
-        # Primero, realiza la predicción para "llamar" a las capas del modelo
+        # La predicción es un array que el modelo espera en 3 dimensiones (batch, timesteps, features).
+        # data_processed tiene forma (1000, 1), por lo que añadimos una dimensión extra.
+        # Esto soluciona el error "The layer sequential has never been called"
         prediction = ecg_model.predict(data_processed[np.newaxis, ...])
         
-        # Luego, genera el mapa de calor con el modelo ya "construido"
         heatmap_data = generate_heatmap(ecg_model, data_processed[np.newaxis, ...])
         
         results = interpret_model_output(prediction)
@@ -263,14 +251,13 @@ with col1:
     
     uploaded_file = st.file_uploader(
         "Sube un archivo ECG",
-        type=['csv', 'txt', 'png', 'jpg', 'jpeg']
+        type=['png', 'jpg', 'jpeg']
     )
     
     url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
     analyze_button = st.button("Analizar")
 
-    # Mantiene el estado del archivo subido en la sesión
     if 'processed' not in st.session_state:
         st.session_state['processed'] = False
         st.session_state['last_uploaded_file'] = None
@@ -324,7 +311,6 @@ with col1:
 with col2:
     if 'last_uploaded_file' in st.session_state and st.session_state['last_uploaded_file'] is not None:
         st.subheader("ECG Subido")
-        # Asegurarse de que el puntero del archivo esté al inicio para poder leerlo
         st.session_state['last_uploaded_file'].seek(0)
         st.image(st.session_state['last_uploaded_file'], caption=st.session_state.get('last_file_name', 'ECG'))
         st.markdown("---")
@@ -348,17 +334,14 @@ with col2:
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.imshow(original_image_np, aspect='auto')
             
-            # Ajustar la longitud del heatmap para que coincida con el ancho de la imagen
             heatmap_display = np.interp(np.linspace(0, 1, original_image_np.shape[1]), 
                                         np.linspace(0, 1, len(heatmap_data)), 
                                         heatmap_data)
             
             cmap = plt.cm.get_cmap('hot')
             
-            # Crear una máscara de calor para superponer sobre la imagen
             heatmap_mask = np.zeros_like(original_image_np[:,:,0], dtype=float)
             center_row = original_image_np.shape[0] // 2
-            # Superponer el heatmap en el centro de la imagen
             heatmap_mask[center_row-10:center_row+10, :] = np.tile(heatmap_display, (20, 1))
             
             ax.imshow(heatmap_mask, cmap=cmap, alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
