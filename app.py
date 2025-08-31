@@ -84,22 +84,17 @@ def predict_with_2d_model(data, file_type):
         return None
 
     try:
-        # Paso 1: Obtener la imagen procesada en 2D
         image_processed = process_uploaded_image_for_2d_model(data)
         if image_processed is None:
             return None
         
-        # Paso 2: Añadir la dimensión de lote para la predicción
         data_for_prediction = np.expand_dims(image_processed, axis=0)
         
-        # Paso 3: Realizar la predicción
         st.info("Modelo cargado. Preprocesando y prediciendo...")
         prediction = ecg_model.predict(data_for_prediction)
 
-        # Paso 4: Generar el mapa de calor (Grad-CAM)
         heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
 
-        # Paso 5: Interpretar y devolver los resultados
         results = interpret_model_output(prediction)
         results["heatmap_data"] = heatmap_data
         
