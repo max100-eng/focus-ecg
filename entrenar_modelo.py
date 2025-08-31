@@ -38,8 +38,8 @@ def load_and_preprocess_data():
     """
     try:
         # Reemplaza con la ruta real a tus archivos de datos.
-        signals = np.load('ruta/a/tus_datos/ecg_signals.npy')
-        labels = np.load('ruta/a/tus_datos/ecg_labels.npy')
+       signals = np.load('ecg_signals.npy')
+        labels = np.load('ecg_labels.npy')
 
         X_train_signals, X_val_signals, y_train, y_val = train_test_split(
             signals, labels, test_size=0.2, random_state=42
