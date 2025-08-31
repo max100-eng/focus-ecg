@@ -6,69 +6,68 @@ from tensorflow.keras.applications import VGG16
 from tensorflow.keras.layers import Dense, Flatten, Dropout
 from tensorflow.keras.models import Model
 import cv2
-from sklearn.model_selection import train_test_split
 
 # --- CONFIGURACIÓN Y PARÁMETROS ---
 IMAGE_SIZE = (224, 224)
-NUM_CLASSES = 4 # Ritmo Normal, IAM, Arritmia, Bloqueo de Branca
-EPOCHS = 10
 BATCH_SIZE = 32
+NUM_CLASSES = 4
+EPOCHS = 10
 
-# --- 1. FUNCIÓN DE CONVERSIÓN DE SEÑAL A IMAGEN ---
-def create_ecg_image_from_signal(signal_1d, img_size=IMAGE_SIZE):
+# --- 1. CARGAR DATOS DIRECTAMENTE DESDE CARPETAS ---
+def load_and_preprocess_data_from_folders():
     """
-    Convierte una señal de ECG 1D en una imagen 2D en escala de grises.
-    """
-    img = np.zeros(img_size, dtype=np.uint8)
-    scaled_signal = (signal_1d - np.min(signal_1d)) / (np.max(signal_1d) - np.min(signal_1d))
-    scaled_signal = (scaled_signal * (img_size[0] - 1)).astype(int)
-    
-    for i, y in enumerate(scaled_signal):
-        if i < img_size[1]:
-            img[y, i] = 255
-            
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    return img_rgb
-
-# --- 2. CARGA Y PREPARACIÓN DE DATOS ---
-def load_and_preprocess_data():
-    """
-    Carga tus datos de entrenamiento y validación desde archivos .npy.
-    Asegúrate de que las rutas y los nombres de los archivos sean correctos.
+    Carga los datos de entrenamiento y validación desde directorios.
+    La función se encarga automáticamente de redimensionar y etiquetar.
     """
     try:
-        # Reemplaza con la ruta real a tus archivos de datos.
-       signals = np.load('ecg_signals.npy')
-        labels = np.load('ecg_labels.npy')
-
-        X_train_signals, X_val_signals, y_train, y_val = train_test_split(
-            signals, labels, test_size=0.2, random_state=42
+        # Asegúrate de que esta ruta apunte a tu carpeta principal de dataset.
+        data_dir = 'C:/Users/maram/focus-ecg/focus-ecg/ECG_DATA' 
+focus-ecg
+        print("Cargando datos de entrenamiento...")
+        train_dataset = tf.keras.utils.image_dataset_from_directory(
+            directory=f'{data_dir}/train',
+            labels='inferred',
+            label_mode='categorical',
+            image_size=IMAGE_SIZE,
+            batch_size=BATCH_SIZE,
+            interpolation='nearest',
+            shuffle=True
         )
 
-        # Convertir señales 1D a imágenes 2D
-        X_train_images = np.array([create_ecg_image_from_signal(s.flatten()) for s in X_train_signals])
-        X_val_images = np.array([create_ecg_image_from_signal(s.flatten()) for s in X_val_signals])
+        print("\nCargando datos de validación...")
+        validation_dataset = tf.keras.utils.image_dataset_from_directory(
+            directory=f'{data_dir}/validation',
+            labels='inferred',
+            label_mode='categorical',
+            image_size=IMAGE_SIZE,
+            batch_size=BATCH_SIZE,
+            interpolation='nearest',
+            shuffle=False
+        )
 
-        print(f"Datos de entrenamiento: {len(X_train_images)} imágenes")
-        print(f"Datos de validación: {len(X_val_images)} imágenes")
-        
-        return X_train_images, y_train, X_val_images, y_val
+        # Opcional: Estandarizar los valores de los píxeles a [0, 1]
+        normalization_layer = tf.keras.layers.Rescaling(1./255)
+        train_dataset = train_dataset.map(lambda x, y: (normalization_layer(x), y))
+        validation_dataset = validation_dataset.map(lambda x, y: (normalization_layer(x), y))
 
-    except FileNotFoundError:
-        print("❌ Error: No se encontraron los archivos de datos. Asegúrate de que las rutas sean correctas.")
-        return None, None, None, None
+        return train_dataset, validation_dataset, True
 
-# --- 3. CONSTRUCCIÓN Y ENTRENAMIENTO DEL MODELO ---
+    except Exception as e:
+        print(f"❌ Error al cargar el dataset. Asegúrate de que las rutas sean correctas. Error: {e}")
+        return None, None, False
+
+# --- 2. CONSTRUIR Y ENTRENAR EL MODELO ---
 if __name__ == '__main__':
-    X_train, y_train, X_val, y_val = load_and_preprocess_data()
+    train_ds, validation_ds, data_loaded = load_and_preprocess_data_from_folders()
     
-    if X_train is not None:
+    if data_loaded:
+        # Construir el modelo de aprendizaje por transferencia
+        print("\n--- CONSTRUYENDO MODELO ---")
         base_model = VGG16(
             weights='imagenet',
             include_top=False,
             input_shape=(IMAGE_SIZE[0], IMAGE_SIZE[1], 3)
         )
-
         for layer in base_model.layers:
             layer.trainable = False
 
@@ -85,15 +84,13 @@ if __name__ == '__main__':
             loss='categorical_crossentropy',
             metrics=['accuracy']
         )
-
         model.summary()
 
         print("\n--- INICIANDO ENTRENAMIENTO ---")
         model.fit(
-            X_train, y_train,
+            train_ds,
             epochs=EPOCHS,
-            batch_size=BATCH_SIZE,
-            validation_data=(X_val, y_val)
+            validation_data=validation_ds
         )
 
         # Guardar el modelo entrenado
