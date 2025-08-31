@@ -8,6 +8,7 @@ import requests
 from io import BytesIO
 import cv2
 from PIL import Image
+import pandas as pd
 
 # Configuración de la página de Streamlit
 st.set_page_config(
@@ -16,7 +17,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- INICIO: ESTILOS CSS ---
+# --- ESTILOS CSS ---
 custom_theme_script = """
 <style>
     body { background-color: #0E1117; color: #C8C9D0; }
@@ -26,28 +27,28 @@ custom_theme_script = """
 </style>
 """
 st.markdown(custom_theme_script, unsafe_allow_html=True)
-# --- FIN: ESTILOS CSS ---
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
 st.markdown("---")
 
-# --- FUNCIONES CLAVE DEL MODELO Y PROCESAMIENTO ---
+# --- FUNCIONES DEL MODELO Y PROCESAMIENTO ---
 
 @st.cache_resource
-def load_ecg_transfer_model():
-    """Carga el modelo de aprendizaje por transferencia."""
+def load_ecg_2d_model():
+    """Carga el modelo 2D de ECG entrenado para imágenes."""
     try:
-        model = keras.models.load_model('modelo_ecg.h5')
-        st.info("✅ Modelo cargado exitosamente.")
+        model = keras.models.load_model('modelo_ecg_2d.h5')
+        st.info("✅ Modelo 2D cargado exitosamente.")
         return model
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg.h5' esté en la misma carpeta.")
+        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg_2d.h5' esté en la misma carpeta.")
         return None
+
 def find_last_conv_layer(model):
     """Encuentra la última capa convolucional 2D."""
     for layer in reversed(model.layers):
-        if 'conv' in layer.name: # Generalizado para capas convolucionales 2D
+        if 'conv' in layer.name:
             return layer
     return None
 
@@ -64,62 +65,39 @@ def interpret_model_output(prediction):
     }
     return {"diagnostico": diagnostico, "analisis_detallado": reporte}
 
-def create_ecg_image_from_signal(signal_1d, img_size=(224, 224)):
-    """Convierte una señal de ECG 1D en una imagen 2D para modelos de visión."""
-    img = np.zeros(img_size, dtype=np.uint8)
-    scaled_signal = (signal_1d - np.min(signal_1d)) / (np.max(signal_1d) - np.min(signal_1d))
-    scaled_signal = (scaled_signal * (img_size[0] - 1)).astype(int)
-    
-    for i, y in enumerate(scaled_signal):
-        if i < img_size[1]:
-            img[y, i] = 255
-            
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    return img_rgb
-
-def process_uploaded_image(image_bytes):
-    """Procesa una imagen subida para extraer la señal 1D."""
+def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
+    """Procesa una imagen subida para que sea compatible con un modelo 2D."""
     try:
         image = Image.open(image_bytes).convert('RGB')
-        gray_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
-        
-        signal = [np.argmin(gray_image[:, col]) for col in range(gray_image.shape[1])]
-        signal_array = np.array(signal, dtype=np.float32)
-
-        if len(signal_array) > 1000:
-            signal_array = signal_array[np.linspace(0, len(signal_array) - 1, 1000).astype(int)]
-        elif len(signal_array) < 1000:
-            padding = np.zeros(1000 - len(signal_array))
-            signal_array = np.concatenate((signal_array, padding))
-        
-        return signal_array.reshape(1000, 1)
+        image_resized = image.resize(img_size)
+        image_np = np.array(image_resized)
+        return image_np
 
     except Exception as e:
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-def predict_with_transfer_model(data, file_type):
-    """Función principal que realiza la predicción con el modelo de transferencia."""
-    ecg_model = load_ecg_transfer_model()
+def predict_with_2d_model(data, file_type):
+    """Función principal que realiza la predicción con el modelo 2D."""
+    ecg_model = load_ecg_2d_model()
     if not ecg_model:
         return None
 
     try:
-        # Paso 1: Obtener la señal 1D de la imagen subida
-        signal_1d = process_uploaded_image(data)
-        if signal_1d is None:
+        # Paso 1: Obtener la imagen procesada en 2D
+        image_processed = process_uploaded_image_for_2d_model(data)
+        if image_processed is None:
             return None
-
-        # Paso 2: Convertir la señal 1D a una imagen 2D para el modelo
-        ecg_image = create_ecg_image_from_signal(signal_1d.flatten())
-        data_processed = np.expand_dims(ecg_image, axis=0)
+        
+        # Paso 2: Añadir la dimensión de lote para la predicción
+        data_for_prediction = np.expand_dims(image_processed, axis=0)
         
         # Paso 3: Realizar la predicción
         st.info("Modelo cargado. Preprocesando y prediciendo...")
-        prediction = ecg_model.predict(data_processed)
+        prediction = ecg_model.predict(data_for_prediction)
 
         # Paso 4: Generar el mapa de calor (Grad-CAM)
-        heatmap_data = generate_heatmap_2d(ecg_model, data_processed)
+        heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
 
         # Paso 5: Interpretar y devolver los resultados
         results = interpret_model_output(prediction)
@@ -155,11 +133,11 @@ def generate_heatmap_2d(model, data_processed):
     heatmap = tf.squeeze(heatmap)
 
     heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
-    heatmap = tf.image.resize(tf.expand_dims(heatmap, axis=-1), (224, 224))
+    heatmap_resized = cv2.resize(heatmap.numpy(), (224, 224))
     
-    return heatmap.numpy().squeeze()
+    return heatmap_resized
 
-# --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
+# --- DISEÑO DE LA APLICACIÓN ---
 
 col1, col2 = st.columns([1, 1.5])
 
@@ -213,7 +191,7 @@ with col1:
             })
 
             with st.spinner("Procesando señal ECG..."):
-                results = predict_with_transfer_model(source_file, file_type)
+                results = predict_with_2d_model(source_file, file_type)
                 if results:
                     st.session_state.update({'results': results, 'processed': True})
                     st.success("Procesamiento completado!")
@@ -231,9 +209,7 @@ with col2:
         st.subheader("Resultados del análisis:")
         results = st.session_state['results']
 
-        if 'last_uploaded_file_type' in st.session_state and \
-           st.session_state['last_uploaded_file_type'] in ["image/png", "image/jpeg", "image/jpg", "image/unknown_url_image"]:
-            
+        if results and results.get('heatmap_data') is not None:
             st.subheader("ECG Subido con Heatmap")
             
             uploaded_image_bytes = st.session_state['last_uploaded_file']
@@ -242,14 +218,14 @@ with col2:
             original_image_np = np.array(original_image)
             
             heatmap_data = results['heatmap_data']
-            if heatmap_data is not None:
-                fig, ax = plt.subplots(figsize=(10, 4))
-                ax.imshow(original_image_np, aspect='auto')
-                ax.imshow(heatmap_data, cmap='hot', alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
-                ax.set_axis_off()
-                st.pyplot(fig)
-            else:
-                st.warning("No se pudo generar el heatmap.")
+            
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.imshow(original_image_np, aspect='auto')
+            ax.imshow(heatmap_data, cmap='hot', alpha=0.5)
+            ax.set_axis_off()
+            st.pyplot(fig)
+        else:
+            st.warning("No se pudo generar el heatmap.")
 
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
