@@ -1,60 +1,99 @@
+# -*- coding: utf-8 -*-
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense
-import numpy as np
-import os
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.models import Model
+import cv2
 
-# --- Configuración y Creación del Modelo ---
-# La arquitectura del modelo debe coincidir con la de tu modelo entrenado real.
-# Este es solo un ejemplo para una señal ECG de 1000 puntos.
-# Si tu modelo es diferente, ajusta las capas y las dimensiones de entrada.
-def create_ecg_model(input_shape):
-    """Crea un modelo de IA de ejemplo para el análisis de ECG."""
-    model = Sequential([
-        # Usamos Conv1D para señales de 1 dimensión (como los datos de ECG)
-        Conv1D(filters=32, kernel_size=5, activation='relu', input_shape=input_shape),
-        MaxPooling1D(pool_size=2),
-        Conv1D(filters=64, kernel_size=5, activation='relu'),
-        MaxPooling1D(pool_size=2),
-        Flatten(),
-        Dense(128, activation='relu'),
-        Dense(4, activation='softmax') # 4 clases: Normal, Arritmia, Taquicardia, Bradicardia
-    ])
+# --- CONFIGURACIÓN Y PARÁMETROS ---
+IMAGE_SIZE = (224, 224)
+BATCH_SIZE = 32
+NUM_CLASSES = 4
+EPOCHS = 10
 
-    model.compile(optimizer='adam',
-                  loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
+# --- 1. CARGAR DATOS DIRECTAMENTE DESDE CARPETAS ---
+def load_and_preprocess_data_from_folders():
+    """
+    Carga los datos de entrenamiento y validación desde directorios.
+    La función se encarga automáticamente de redimensionar y etiquetar.
+    """
+    try:
+        # Asegúrate de que esta ruta apunte a tu carpeta principal de dataset.
+        data_dir = 'C:/Users/maram/focus-ecg/focus-ecg/ECG_DATA' 
+#focus-ecg
+        print("Cargando datos de entrenamiento...")
+        train_dataset = tf.keras.utils.image_dataset_from_directory(
+            directory=f'{data_dir}/train',
+            labels='inferred',
+            label_mode='categorical',
+            image_size=IMAGE_SIZE,
+            batch_size=BATCH_SIZE,
+            interpolation='nearest',
+            shuffle=True
+        )
+
+        print("\nCargando datos de validación...")
+        validation_dataset = tf.keras.utils.image_dataset_from_directory(
+            directory=f'{data_dir}/validation',
+            labels='inferred',
+            label_mode='categorical',
+            image_size=IMAGE_SIZE,
+            batch_size=BATCH_SIZE,
+            interpolation='nearest',
+            shuffle=False
+        )
+
+        # Opcional: Estandarizar los valores de los píxeles a [0, 1]
+        normalization_layer = tf.keras.layers.Rescaling(1./255)
+        train_dataset = train_dataset.map(lambda x, y: (normalization_layer(x), y))
+        validation_dataset = validation_dataset.map(lambda x, y: (normalization_layer(x), y))
+
+        return train_dataset, validation_dataset, True
+
+    except Exception as e:
+        print(f"❌ Error al cargar el dataset. Asegúrate de que las rutas sean correctas. Error: {e}")
+        return None, None, False
+
+# --- 2. CONSTRUIR Y ENTRENAR EL MODELO ---
+if __name__ == '__main__':
+    train_ds, validation_ds, data_loaded = load_and_preprocess_data_from_folders()
     
-    return model
+    if data_loaded:
+        # Construir el modelo de aprendizaje por transferencia
+        print("\n--- CONSTRUYENDO MODELO ---")
+        base_model = VGG16(
+            weights='imagenet',
+            include_top=False,
+            input_shape=(IMAGE_SIZE[0], IMAGE_SIZE[1], 3)
+        )
+        for layer in base_model.layers:
+            layer.trainable = False
 
-# --- Simulación de Datos de Entrenamiento ---
-# ¡IMPORTANTE! Reemplaza esto con tus datos de entrenamiento reales de ECG.
-# La forma (shape) de los datos debe coincidir con la forma de entrada del modelo.
-num_samples = 1000  # Número de señales de ejemplo
-signal_length = 1000 # Duración de cada señal (ej. 1000 puntos)
-input_shape = (signal_length, 1)
+        x = base_model.output
+        x = Flatten()(x)
+        x = Dense(256, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        predictions = Dense(NUM_CLASSES, activation='softmax')(x)
 
-# Creamos datos de señal aleatorios y etiquetas aleatorias
-dummy_ecg_data = np.random.randn(num_samples, signal_length, 1).astype(np.float32)
-dummy_labels = np.random.randint(0, 4, num_samples).astype(np.int32)
+        model = Model(inputs=base_model.input, outputs=predictions)
+        
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        model.summary()
 
-print("Datos de entrenamiento simulados creados.")
-print(f"Forma de los datos: {dummy_ecg_data.shape}")
-print(f"Forma de las etiquetas: {dummy_labels.shape}")
+        print("\n--- INICIANDO ENTRENAMIENTO ---")
+        model.fit(
+            train_ds,
+            epochs=EPOCHS,
+            validation_data=validation_ds
+        )
 
-# --- Entrenamiento y Guardado del Modelo ---
-model = create_ecg_model(input_shape)
-model.summary()
-
-print("\nSimulando entrenamiento (esto puede tomar un tiempo)...")
-history = model.fit(dummy_ecg_data, dummy_labels, epochs=5, batch_size=32, verbose=1)
-print("\nEntrenamiento simulado completado.")
-print(f"Precisión final simulada: {history.history['accuracy'][-1]:.4f}")
-
-# Guardar el modelo en un archivo .h5
-model_save_path = 'modelo_ecg.h5'
-model.save(model_save_path)
-
-print(f"\n¡Modelo guardado exitosamente en: {model_save_path}!")
-print("Ahora puedes usar este archivo en tu aplicación de Streamlit.")
+        # Guardar el modelo entrenado
+        model_path = 'modelo_ecg_2d.h5'
+        model.save(model_path)
+        print(f"\n✅ Modelo 2D entrenado guardado como '{model_path}'.")
