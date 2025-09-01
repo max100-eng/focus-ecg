@@ -6,7 +6,6 @@ from tensorflow.keras.applications import VGG16
 from tensorflow.keras.layers import Dense, Flatten, Dropout
 from tensorflow.keras.models import Model
 import cv2
-<<<<<<< HEAD
 from sklearn.model_selection import train_test_split
 
 # --- CONFIGURACIÓN Y PARÁMETROS ---
@@ -193,4 +192,4 @@ if __name__ == '__main__':
         model_path = 'modelo_ecg_2d.h5'
         model.save(model_path)
         print(f"\n✅ Modelo 2D entrenado guardado como '{model_path}'.")
->>>>>>> 5b01fa29dee98be75122918b1d4d3a91ee258bb6
+
