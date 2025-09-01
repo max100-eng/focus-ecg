@@ -230,9 +230,8 @@ with col2:
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
-        if diagnostico == "Infarto Agudo del Miocardio (IAM)":
+       if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
-            st.warning("Busque **ATENCIÓN MÉDICA DE URGENCIA** de inmediato.")
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
         else:
