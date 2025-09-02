@@ -132,6 +132,12 @@ def build_and_train_model(train_ds, validation_ds):
         callbacks=[early_stopping]
     )
 
+    # --- Evaluación final del modelo ---
+    print("\n--- EVALUANDO EL MODELO FINAL ---")
+    loss, accuracy = model.evaluate(validation_ds)
+    print(f"✅ Precisión final del modelo: {accuracy:.4f}")
+    print(f"✅ Pérdida final del modelo: {loss:.4f}")
+
     # Guardar el modelo entrenado
     model_path = 'modelo_ecg_2d.h5'
     model.save(model_path)
