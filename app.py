@@ -250,18 +250,7 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
-```
-eof
 
-### Pasos para Finalizar la Fusión
 
-1.  **Copia y pega** todo el código de arriba en tu archivo `app.py`, sobrescribiendo todo el contenido.
-2.  **Guarda el archivo**.
-3.  En tu terminal, usa el siguiente comando para decirle a Git que el conflicto ha sido resuelto:
-    ```bash
-    git add app.py
-    ```
-4.  Luego, continúa el proceso de _rebase_:
-    ```bash
-    git rebase --continue
+
     
