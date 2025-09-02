@@ -15,7 +15,7 @@ BATCH_SIZE = 32
 NUM_CLASSES = 4
 EPOCHS = 10
 
-# --- 1. CARGAR DATOS DIRECTAMENTE DESDE CARPETAS (OPCIÓN A) ---
+# --- 1. CARGAR DATOS DIRECTAMENTE DESDE CARPETAS ---
 def load_and_preprocess_data_from_folders():
     """
     Carga los datos de entrenamiento y validación desde directorios.
@@ -59,7 +59,7 @@ def load_and_preprocess_data_from_folders():
         print(f"❌ Error al cargar el dataset desde carpetas. Error: {e}")
         return None, None, False
 
-# --- 2. CARGAR DATOS DESDE ARCHIVOS .NPY (OPCIÓN B) ---
+# --- 2. CONVERTIR SEÑAL 1D A IMAGEN 2D ---
 def create_ecg_image_from_signal(signal_1d, img_size=IMAGE_SIZE):
     """
     Convierte una señal de ECG 1D en una imagen 2D en escala de grises.
@@ -75,6 +75,7 @@ def create_ecg_image_from_signal(signal_1d, img_size=IMAGE_SIZE):
     img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
     return img_rgb
 
+# --- 3. CARGAR DATOS DESDE ARCHIVOS .NPY ---
 def load_and_preprocess_data_from_npy():
     """
     Carga tus datos de entrenamiento y validación desde archivos .npy.
@@ -99,7 +100,7 @@ def load_and_preprocess_data_from_npy():
         print("❌ Error: No se encontraron los archivos .npy. Asegúrate de que las rutas sean correctas.")
         return None, None, None, None, False
 
-# --- 3. CONSTRUCCIÓN Y ENTRENAMIENTO DEL MODELO ---
+# --- 4. CONSTRUCCIÓN Y ENTRENAMIENTO DEL MODELO ---
 def build_and_train_model(train_ds, validation_ds):
     """
     Construye y entrena el modelo de aprendizaje por transferencia.
@@ -147,11 +148,9 @@ if __name__ == '__main__':
 
     # OPCIÓN B: Cargar desde archivos .npy (si tienes señales 1D)
     # train_data, y_train, val_data, y_val, data_loaded = load_and_preprocess_data_from_npy()
-    # Si eliges esta opción, necesitarás adaptar el código en la función de entrenamiento
-    # para usar los arrays de numpy en lugar de los objetos de dataset.
-
+    # Si eliges esta opción, necesitarás adaptar la función de entrenamiento.
+    
     if data_loaded:
-        # Si elegiste la opción A, usa build_and_train_model(train_ds, validation_ds)
-        # Si elegiste la opción B, la función de entrenamiento necesita ser ligeramente adaptada
-        # para usar arrays de numpy: model.fit(train_data, y_train, validation_data=(val_data, y_val))
         build_and_train_model(train_ds, validation_ds)
+
+
