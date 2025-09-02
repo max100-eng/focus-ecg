@@ -2,7 +2,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.applications import VGG16
-from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.layers import Dense, Flatten, Dropout, RandomRotation, RandomZoom, RandomTranslation
 from tensorflow.keras.models import Model
 import numpy as np
 import cv2
@@ -66,8 +66,15 @@ def load_and_preprocess_data_from_folders():
 # --- 2. CONSTRUCCIÓN Y ENTRENAMIENTO DEL MODELO CON AJUSTE FINO ---
 def build_and_train_model(train_ds, validation_ds):
     """
-    Construye y entrena el modelo de aprendizaje por transferencia con Fine-Tuning.
+    Construye y entrena el modelo de aprendizaje por transferencia con Fine-Tuning y Data Augmentation.
     """
+    # Define las capas de aumento de datos
+    data_augmentation_layers = keras.Sequential([
+        RandomRotation(factor=0.02),
+        RandomZoom(height_factor=0.02, width_factor=0.02),
+        RandomTranslation(height_factor=0.1, width_factor=0.1)
+    ])
+
     print("\n--- FASE 1: ENTRENANDO EL CABEZAL DE CLASIFICACIÓN ---")
     
     # Crea el modelo base VGG16 y congela todas sus capas
@@ -78,14 +85,16 @@ def build_and_train_model(train_ds, validation_ds):
     )
     base_model.trainable = False
 
-    # Crea el cabezal de clasificación
-    x = base_model.output
+    # Combina las capas de aumento de datos con el modelo base y el cabezal
+    inputs = keras.Input(shape=IMAGE_SIZE + (3,))
+    x = data_augmentation_layers(inputs)
+    x = base_model(x, training=False)
     x = Flatten()(x)
     x = Dense(256, activation='relu')(x)
     x = Dropout(0.5)(x)
     predictions = Dense(NUM_CLASSES, activation='softmax')(x)
 
-    model = Model(inputs=base_model.input, outputs=predictions)
+    model = Model(inputs=inputs, outputs=predictions)
     
     # Compila y entrena el modelo (solo el cabezal)
     model.compile(
