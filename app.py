@@ -91,7 +91,11 @@ def predict_with_2d_model(data, file_type):
         data_for_prediction = np.expand_dims(image_processed, axis=0)
         
         st.info("Modelo cargado. Preprocesando y prediciendo...")
+
         prediction = ecg_model.predict(data_for_prediction)
+
+        # Esta línea imprimirá el resultado crudo en tu terminal para que puedas verlo
+        print("Predicción cruda del modelo:", prediction)
 
         heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
 
@@ -216,7 +220,12 @@ with col2:
             
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.imshow(original_image_np, aspect='auto')
-            ax.imshow(heatmap_data, cmap='hot', alpha=0.5)
+
+            h, w, _ = original_image_np.shape
+            heatmap_resized = cv2.resize(heatmap_data, (w, h))
+
+            ax.imshow(heatmap_resized, cmap='hot', alpha=0.5)
+            
             ax.set_axis_off()
             st.pyplot(fig)
         else:
@@ -225,7 +234,7 @@ with col2:
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
-       if diagnostico == "Infarto Agudo del Miocardio (IAM)":
+        if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
@@ -235,7 +244,6 @@ with col2:
         st.subheader("Análisis Detallado de Elementos del ECG")
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
-
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
