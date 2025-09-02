@@ -77,37 +77,6 @@ def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-def predict_with_2d_model(data, file_type):
-    """Función principal que realiza la predicción con el modelo 2D."""
-    ecg_model = load_ecg_2d_model()
-    if not ecg_model:
-        return None
-
-    try:
-        image_processed = process_uploaded_image_for_2d_model(data)
-        if image_processed is None:
-            return None
-        
-        data_for_prediction = np.expand_dims(image_processed, axis=0)
-        
-        st.info("Modelo cargado. Preprocesando y prediciendo...")
-
-        prediction = ecg_model.predict(data_for_prediction)
-
-        # Esta línea imprimirá el resultado crudo en tu terminal para que puedas verlo
-        print("Predicción cruda del modelo:", prediction)
-
-        heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
-
-        results = interpret_model_output(prediction)
-        results["heatmap_data"] = heatmap_data
-        
-        return results
-
-    except Exception as e:
-        st.error(f"❌ Error durante la predicción con el modelo: {e}")
-        return None
-
 def generate_heatmap_2d(model, data_processed):
     """Genera un mapa de calor para un modelo 2D (Grad-CAM)."""
     last_conv_layer = find_last_conv_layer(model)
@@ -135,6 +104,36 @@ def generate_heatmap_2d(model, data_processed):
     heatmap_resized = cv2.resize(heatmap.numpy(), (224, 224))
     
     return heatmap_resized
+
+def predict_with_2d_model(data, file_type):
+    """Función principal que realiza la predicción con el modelo 2D."""
+    ecg_model = load_ecg_2d_model()
+    if not ecg_model:
+        return None
+
+    try:
+        image_processed = process_uploaded_image_for_2d_model(data)
+        if image_processed is None:
+            return None
+        
+        data_for_prediction = np.expand_dims(image_processed, axis=0)
+        
+        st.info("Modelo cargado. Preprocesando y prediciendo...")
+
+        prediction = ecg_model.predict(data_for_prediction)
+
+        print("Predicción cruda del modelo:", prediction)
+
+        heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
+
+        results = interpret_model_output(prediction)
+        results["heatmap_data"] = heatmap_data
+        
+        return results
+
+    except Exception as e:
+        st.error(f"❌ Error durante la predicción con el modelo: {e}")
+        return None
 
 # --- DISEÑO DE LA APLICACIÓN ---
 
@@ -221,10 +220,7 @@ with col2:
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.imshow(original_image_np, aspect='auto')
 
-            h, w, _ = original_image_np.shape
-            heatmap_resized = cv2.resize(heatmap_data, (w, h))
-
-            ax.imshow(heatmap_resized, cmap='hot', alpha=0.5)
+            ax.imshow(heatmap_data, cmap='hot', alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
             
             ax.set_axis_off()
             st.pyplot(fig)
