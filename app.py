@@ -12,8 +12,7 @@ import pandas as pd
 <<<<<<< HEAD
 import json
 import random
-=======
->>>>>>> 2c355b25ced582aa5094505f594046b2c94e292e
+
 
 # Configuración de la página de Streamlit
 st.set_page_config(
