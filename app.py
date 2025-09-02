@@ -9,6 +9,8 @@ from io import BytesIO
 import cv2
 from PIL import Image
 import pandas as pd
+import json
+import random
 
 # Configuración de la página de Streamlit
 st.set_page_config(
@@ -24,6 +26,10 @@ custom_theme_script = """
     .stApp { background-color: #0E1117; }
     .stButton>button { background-color: #007BFF; color: white; border-radius: 5px; }
     .important-notice-box { background-color: #2F2F1C; border-left: 5px solid #FFD700; padding: 10px; border-radius: 5px; margin-top: 20px; }
+    .st-emotion-cache-10q270i { background-color: #1A1A1A; border-radius: 8px; padding: 20px; }
+    .st-emotion-cache-1n76qlr { background-color: #1A1A1A; }
+    .red-border { border: 4px solid #FF4B4B; border-radius: 5px; padding: 5px; }
+    .dataframe th, .dataframe td { background-color: #1A1A1A; color: #C8C9D0; }
 </style>
 """
 st.markdown(custom_theme_script, unsafe_allow_html=True)
@@ -232,6 +238,7 @@ with col2:
         
         if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
+            st.warning("Busque **ATENCIÓN MÉDICA DE URGENCIA** de inmediato. Este resultado sugiere un posible evento cardíaco grave.")
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
         else:
@@ -243,3 +250,18 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
+```
+eof
+
+### Pasos para Finalizar la Fusión
+
+1.  **Copia y pega** todo el código de arriba en tu archivo `app.py`, sobrescribiendo todo el contenido.
+2.  **Guarda el archivo**.
+3.  En tu terminal, usa el siguiente comando para decirle a Git que el conflicto ha sido resuelto:
+    ```bash
+    git add app.py
+    ```
+4.  Luego, continúa el proceso de _rebase_:
+    ```bash
+    git rebase --continue
+    
