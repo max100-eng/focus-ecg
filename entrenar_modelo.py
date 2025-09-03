@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-<<<<<<< HEAD
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.applications import VGG16
@@ -9,7 +8,6 @@ import numpy as np
 import cv2
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
-=======
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -18,7 +16,6 @@ from tensorflow.keras.layers import Dense, Flatten, Dropout
 from tensorflow.keras.models import Model
 import cv2
 from sklearn.model_selection import train_test_split
->>>>>>> 2c355b25ced582aa5094505f594046b2c94e292e
 import os
 from tensorflow.keras.callbacks import EarlyStopping
 
@@ -26,7 +23,6 @@ from tensorflow.keras.callbacks import EarlyStopping
 IMAGE_SIZE = (224, 224)
 BATCH_SIZE = 32
 NUM_CLASSES = 4
-<<<<<<< HEAD
 # Puedes poner un número de épocas alto, el EarlyStopping lo detendrá
 EPOCHS = 50 
 
