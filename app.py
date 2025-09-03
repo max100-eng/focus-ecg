@@ -12,7 +12,6 @@ import pandas as pd
 import json
 import random
 
-
 # Configuración de la página de Streamlit
 st.set_page_config(
     page_title="Focus ECG",
@@ -27,13 +26,10 @@ custom_theme_script = """
     .stApp { background-color: #0E1117; }
     .stButton>button { background-color: #007BFF; color: white; border-radius: 5px; }
     .important-notice-box { background-color: #2F2F1C; border-left: 5px solid #FFD700; padding: 10px; border-radius: 5px; margin-top: 20px; }
-<<<<<<< HEAD
     .st-emotion-cache-10q270i { background-color: #1A1A1A; border-radius: 8px; padding: 20px; }
     .st-emotion-cache-1n76qlr { background-color: #1A1A1A; }
     .red-border { border: 4px solid #FF4B4B; border-radius: 5px; padding: 5px; }
     .dataframe th, .dataframe td { background-color: #1A1A1A; color: #C8C9D0; }
-=======
->>>>>>> 2c355b25ced582aa5094505f594046b2c94e292e
 </style>
 """
 st.markdown(custom_theme_script, unsafe_allow_html=True)
@@ -56,9 +52,9 @@ def load_ecg_2d_model():
         return None
 
 def find_last_conv_layer(model):
-    """Encuentra la última capa convolucional 2D."""
+    """Encuentra la última capa convolucional 2D del modelo."""
     for layer in reversed(model.layers):
-        if 'conv' in layer.name:
+        if "Conv2D" in str(type(layer)):
             return layer
     return None
 
@@ -81,42 +77,18 @@ def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
         image = Image.open(image_bytes).convert('RGB')
         image_resized = image.resize(img_size)
         image_np = np.array(image_resized)
-        return image_np
+        image_normalized = image_np.astype('float32') / 255.0  # Normalización crucial
+        return image_normalized
 
     except Exception as e:
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-def predict_with_2d_model(data, file_type):
-    """Función principal que realiza la predicción con el modelo 2D."""
-    ecg_model = load_ecg_2d_model()
-    if not ecg_model:
-        return None
-
-    try:
-        image_processed = process_uploaded_image_for_2d_model(data)
-        if image_processed is None:
-            return None
-        
-        data_for_prediction = np.expand_dims(image_processed, axis=0)
-        
-        st.info("Modelo cargado. Preprocesando y prediciendo...")
-        prediction = ecg_model.predict(data_for_prediction)
-
-        heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
-
-        results = interpret_model_output(prediction)
-        results["heatmap_data"] = heatmap_data
-        
-        return results
-
-    except Exception as e:
-        st.error(f"❌ Error durante la predicción con el modelo: {e}")
-        return None
-
 def generate_heatmap_2d(model, data_processed):
     """Genera un mapa de calor para un modelo 2D (Grad-CAM)."""
+    # Encuentra la última capa convolucional
     last_conv_layer = find_last_conv_layer(model)
+    
     if not last_conv_layer:
         st.warning("No se encontró una capa convolucional 2D para generar el heatmap.")
         return None
@@ -171,6 +143,7 @@ def predict_with_2d_model(data, file_type):
     except Exception as e:
         st.error(f"❌ Error durante la predicción con el modelo: {e}")
         return None
+
 # --- DISEÑO DE LA APLICACIÓN ---
 
 col1, col2 = st.columns([1, 1.5])
@@ -255,8 +228,9 @@ with col2:
             
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.imshow(original_image_np, aspect='auto')
+
             ax.imshow(heatmap_data, cmap='hot', alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
-            ax.imshow(heatmap_data, cmap='hot', alpha=0.5)
+            
             ax.set_axis_off()
             st.pyplot(fig)
         else:
@@ -265,8 +239,9 @@ with col2:
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
-       if diagnostico == "Infarto Agudo del Miocardio (IAM)":
+        if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
+
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
         else:
@@ -275,7 +250,6 @@ with col2:
         st.subheader("Análisis Detallado de Elementos del ECG")
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
-
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
