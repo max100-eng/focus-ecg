@@ -9,7 +9,6 @@ from io import BytesIO
 import cv2
 from PIL import Image
 import pandas as pd
-<<<<<<< HEAD
 import json
 import random
 
