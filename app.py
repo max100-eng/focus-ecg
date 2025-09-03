@@ -241,6 +241,7 @@ with col2:
         
         if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
+            st.warning("Busque **ATENCIÓN MÉDICA DE URGENCIA** de inmediato. Este resultado sugiere un posible evento cardíaco grave.")
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
         else:
@@ -252,3 +253,4 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
+
