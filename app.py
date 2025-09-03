@@ -241,7 +241,6 @@ with col2:
         
         if diagnostico == "Infarto Agudo del Miocardio (IAM)":
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
-
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
         else:
