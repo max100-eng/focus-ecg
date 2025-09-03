@@ -86,7 +86,7 @@ def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
 
 def generate_heatmap_2d(model, data_processed):
     """Genera un mapa de calor para un modelo 2D (Grad-CAM)."""
-    # Encuentra la última capa convolucional
+    # Encuentra la última capa convolucional de forma robusta
     last_conv_layer = find_last_conv_layer(model)
     
     if not last_conv_layer:
@@ -252,4 +252,3 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
-
