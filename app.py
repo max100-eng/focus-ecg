@@ -19,6 +19,31 @@ st.set_page_config(
 )
 
 # --- ESTILOS CSS ---
+custom_theme_script = """
+<style>
+    body { background-color: #0E1117; color: #C8C9D0; }
+    .stApp { background-color: #0E1117; }
+    .stButton>button { background-color: #007BFF; color: white; border-radius: 5px; }
+    .important-notice-box { background-color: #2F2F1C; border-left: 5px solid #FFD700; padding: 10px; border-radius: 5px; margin-top: 20px; }
+    .st-emotion-cache-10q270i { background-color: #1A1A1A; border-radius: 8px; padding: 20px; }
+    .st-emotion-cache-1n76qlr { background-color: #1A1A1A; }
+    .red-border { border: 4px solid #FF4B4B; border-radius: 5px; padding: 5px; }
+    .dataframe th, .dataframe td { background-color: #1A1A1A; color: #C8C9D0; }
+    
+    /* AÑADIDO: Font-face optimizado */
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('ruta/a/la/fuente/SourceSansPro-Regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap; 
+    }
+</style>
+"""
+st.markdown(custom_theme_script, unsafe_allow_html=True)
+
+# Título de la aplicación
+st.title("❤️ Focus ECG")
 @font-face {
   font-family: 'Source Sans Pro';
   src: url('ruta/a/la/fuente/SourceSansPro-Regular.woff2') format('woff2');
@@ -42,10 +67,6 @@ st.set_page_config(
   font-style: normal;
   font-display: swap; /* Y en todas tus fuentes web */
 }
-
-# Título de la aplicación
-st.title("❤️ Focus ECG")
-st.markdown("---")
 
 ## Funciones del modelo y preprocesamiento
 
