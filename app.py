@@ -10,41 +10,52 @@ import cv2
 from PIL import Image
 import pandas as pd
 import json
-import random
 
 # Configuración de la página de Streamlit
-st.set_page_page_config(
+st.set_page_config(
     page_title="Focus ECG",
     page_icon="❤️",
     layout="wide"
 )
 
 # --- ESTILOS CSS ---
-custom_theme_script = """
-<style>
-    body { background-color: #0E1117; color: #C8C9D0; }
-    .stApp { background-color: #0E1117; }
-    .stButton>button { background-color: #007BFF; color: white; border-radius: 5px; }
-    .important-notice-box { background-color: #2F2F1C; border-left: 5px solid #FFD700; padding: 10px; border-radius: 5px; margin-top: 20px; }
-    .st-emotion-cache-10q270i { background-color: #1A1A1A; border-radius: 8px; padding: 20px; }
-    .st-emotion-cache-1n76qlr { background-color: #1A1A1A; }
-    .red-border { border: 4px solid #FF4B4B; border-radius: 5px; padding: 5px; }
-    .dataframe th, .dataframe td { background-color: #1A1A1A; color: #C8C9D0; }
-</style>
-"""
-st.markdown(custom_theme_script, unsafe_allow_html=True)
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: url('ruta/a/la/fuente/SourceSansPro-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* Esto es lo que necesitas agregar */
+}
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: url('ruta/a/la/fuente/SourceSansPro-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap; /* Y aquí también */
+}
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: url('ruta/a/la/fuente/SourceSansPro-Bold.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap; /* Y en todas tus fuentes web */
+}
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
 st.markdown("---")
 
-# --- FUNCIONES DEL MODELO Y PROCESAMIENTO ---
+## Funciones del modelo y preprocesamiento
 
 @st.cache_resource
 def load_ecg_2d_model():
-    """Carga un modelo 2D de ejemplo."""
+    """
+    Carga el modelo 2D de ECG.
+    ⚠️ IMPORTANTE: Asegúrate de que tu modelo 'modelo_ecg_2d.h5' esté en la misma carpeta.
+    """
     try:
-        # Reemplaza esta línea con tu modelo real 'modelo_ecg_2d.h5'
         model = keras.models.load_model('modelo_ecg_2d.h5')
         st.info("✅ Modelo 2D cargado exitosamente.")
         return model
@@ -131,11 +142,9 @@ def predict_with_2d_model(data, file_type):
         data_for_prediction = np.expand_dims(image_processed, axis=0)
         
         st.info("Modelo cargado. Preprocesando y prediciendo...")
-
-        # 1. Realizar la predicción primero para 'llamar' al modelo.
+        
         prediction = ecg_model.predict(data_for_prediction)
 
-        # 2. Luego, generar el mapa de calor.
         heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
 
         results = interpret_model_output(prediction)
@@ -147,7 +156,7 @@ def predict_with_2d_model(data, file_type):
         st.error(f"❌ Error durante la predicción con el modelo: {e}")
         return None
 
-# --- DISEÑO DE LA APLICACIÓN ---
+## Diseño de la aplicación
 
 col1, col2 = st.columns([1, 1.5])
 
