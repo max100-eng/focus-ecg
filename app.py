@@ -98,25 +98,18 @@ def interpret_model_output(prediction):
     }
     return {"diagnostico": diagnostico, "analisis_detallado": reporte}
 
-def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
+def process_image(image_bytes, img_size=(224, 224)):
     """
     Procesa y optimiza una imagen subida para que sea compatible con un modelo 2D.
-    - Convierte a RGB.
-    - Reduce la calidad y el tamaño del archivo para una carga más rápida.
     """
     try:
-        # Cargar la imagen y convertir a RGB
         image = Image.open(image_bytes).convert('RGB')
         
-        # Opcional: Reducir la calidad de la imagen para una carga más rápida
-        # Esto es útil si los archivos originales son muy grandes
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG", optimize=True, quality=85)
-        image = Image.open(buffered)
-
-        # Redimensionar la imagen para que coincida con el tamaño del modelo
+        # Optimizar y redimensionar la imagen para el modelo
         image_resized = image.resize(img_size)
         image_np = np.array(image_resized)
+        
+        # Normalización crucial para el modelo
         image_normalized = image_np.astype('float32') / 255.0
         return image_normalized
     except Exception as e:
@@ -156,14 +149,14 @@ def generate_heatmap_2d(model, data_processed):
         st.error(f"❌ Error al generar el mapa de calor: {e}")
         return None
 
-def predict_with_2d_model(data, file_type):
+def predict_with_2d_model(data):
     """Función principal que realiza la predicción con el modelo 2D."""
     ecg_model = load_ecg_2d_model()
     if ecg_model is None:
         return None
 
     try:
-        image_processed = process_uploaded_image_for_2d_model(data)
+        image_processed = process_image(data)
         if image_processed is None:
             return None
         
@@ -238,7 +231,7 @@ with col1:
             })
 
             with st.spinner("Procesando señal ECG..."):
-                results = predict_with_2d_model(source_file, file_type)
+                results = predict_with_2d_model(source_file)
                 if results:
                     st.session_state.update({'results': results, 'processed': True})
                     st.success("Procesamiento completado!")
