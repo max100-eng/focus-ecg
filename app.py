@@ -30,13 +30,13 @@ custom_theme_script = """
     .red-border { border: 4px solid #FF4B4B; border-radius: 5px; padding: 5px; }
     .dataframe th, .dataframe td { background-color: #1A1A1A; color: #C8C9D0; }
     
-    /* AÑADIDO: Font-face optimizado */
+    /* AÑADIDO: Font-face optimizado con font-display: swap; */
     @font-face {
       font-family: 'Source Sans Pro';
       src: url('ruta/a/la/fuente/SourceSansPro-Regular.woff2') format('woff2');
       font-weight: normal;
       font-style: normal;
-      font-display: swap;  /* Esto es lo que necesitas agregar */
+      font-display: swap; 
     }
     
     @font-face {
@@ -44,7 +44,7 @@ custom_theme_script = """
       src: url('ruta/a/la/fuente/SourceSansPro-SemiBold.woff2') format('woff2');
       font-weight: 600;
       font-style: normal;
-      font-display: swap;  /* Y aquí también */
+      font-display: swap; 
     }
     
     @font-face {
@@ -52,7 +52,7 @@ custom_theme_script = """
       src: url('ruta/a/la/fuente/SourceSansPro-Bold.woff2') format('woff2');
       font-weight: bold;
       font-style: normal;
-      font-display: swap;  /* Y en todas tus fuentes web */
+      font-display: swap; 
     }
 </style>
 """
