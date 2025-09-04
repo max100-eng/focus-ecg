@@ -99,9 +99,22 @@ def interpret_model_output(prediction):
     return {"diagnostico": diagnostico, "analisis_detallado": reporte}
 
 def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
-    """Procesa una imagen subida para que sea compatible con un modelo 2D."""
+    """
+    Procesa y optimiza una imagen subida para que sea compatible con un modelo 2D.
+    - Convierte a RGB.
+    - Reduce la calidad y el tamaño del archivo para una carga más rápida.
+    """
     try:
+        # Cargar la imagen y convertir a RGB
         image = Image.open(image_bytes).convert('RGB')
+        
+        # Opcional: Reducir la calidad de la imagen para una carga más rápida
+        # Esto es útil si los archivos originales son muy grandes
+        buffered = BytesIO()
+        image.save(buffered, format="JPEG", optimize=True, quality=85)
+        image = Image.open(buffered)
+
+        # Redimensionar la imagen para que coincida con el tamaño del modelo
         image_resized = image.resize(img_size)
         image_np = np.array(image_resized)
         image_normalized = image_np.astype('float32') / 255.0
