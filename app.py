@@ -73,16 +73,17 @@ def load_models():
     models = {}
     try:
         # Carga el modelo 2D para imágenes
-        # Asegúrate de que este archivo contenga un modelo 2D.
-        models['image_model'] = keras.models.load_model('best_model_2d.keras')
+        # Se usa 'modelo_ecg_2d.h5' según tu indicación.
+        models['image_model'] = keras.models.load_model('modelo_ecg_2d.h5')
         st.info("✅ Modelo de imágenes (2D) cargado.")
     except Exception as e:
         st.error(f"❌ Error al cargar el modelo de imágenes: {e}")
 
     try:
         # Carga el modelo 1D para señales (Wavelet)
-        # Asegúrate de que este archivo exista en la misma carpeta.
-        models['signal_model'] = keras.models.load_model('best_model_wavelet.keras')
+        # Se usa 'best_model_ptbdb.keras' según tu indicación.
+        # Si prefieres usar el de MIT-BIH, cámbialo a 'best_model_mitbih.keras'.
+        models['signal_model'] = keras.models.load_model('best_model_ptbdb.keras')
         st.info("✅ Modelo de señales (1D) cargado.")
     except Exception as e:
         st.error(f"❌ Error al cargar el modelo de señales: {e}")
