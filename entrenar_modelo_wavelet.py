@@ -1,130 +1,137 @@
-import pywt
+# -*- coding: utf-8 -*-
+import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.models import Sequential
-import os
-import cv2
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Dense, Flatten, Dropout
+from tensorflow.keras.callbacks import ModelCheckpoint
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
 
-# --- CONFIGURACIÓN Y PARÁMETROS ---
-IMAGE_SIZE = (224, 224)
+# --- Configuración de rutas y parámetros ---
+# ⚠️ Importante: Asegúrate de que estas rutas sean correctas para tu sistema.
+# Si los archivos están en una carpeta 'signal_ecg_archive' dentro de 'focus-ecg',
+# la ruta relativa 'signal_ecg_archive/...' funcionará.
+RUTA_PTBDB_NORMAL = 'signal_ecg_archive/ptbdb_normal.csv'
+RUTA_PTBDB_ABNORMAL = 'signal_ecg_archive/ptbdb_abnormal.csv'
+RUTA_MITBIH_TRAIN = 'signal_ecg_archive/mitbih_train.csv'
+RUTA_MITBIH_TEST = 'signal_ecg_archive/mitbih_test.csv'
+
+NUM_CLASSES_PTBDB = 2
+NUM_CLASSES_MITBIH = 5
+EPOCHS = 50
 BATCH_SIZE = 32
-NUM_CLASSES = 4
-EPOCHS = 10 
 
-# --- 1. FUNCIÓN PARA APLICAR LA TRANSFORMADA DE WAVELET ---
-def apply_wavelet_transform(image):
-    """
-    Aplica la transformada de wavelet 'db1' a una imagen en escala de grises.
-    Devuelve los coeficientes de aproximación.
-    """
-    # Convertir a escala de grises
-    gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    
-    # Aplicar la transformada de wavelet (de Haar) en 2 niveles
-    coeffs2 = pywt.dwt2(gray_image, 'db1')
-    ll, (lh, hl, hh) = coeffs2
-    
-    # La aproximación (LL) contiene las características de baja frecuencia,
-    # que son útiles para el reconocimiento de patrones de ondas.
-    return ll
-
-# --- 2. CARGAR Y PREPROCESAR DATOS CON WAVELET ---
-def load_and_preprocess_data_with_wavelet():
-    """
-    Carga los datos desde carpetas y aplica la transformada de wavelet.
-    """
+def load_data(file_path):
+    """Carga un archivo CSV y separa los datos de las etiquetas."""
     try:
-        data_dir = 'C:/Users/maram/focus-ecg/ECG_DATA'
-        
-        if not os.path.isdir(data_dir):
-            print(f"❌ Error: El directorio '{data_dir}' no existe.")
-            return None, None, False
-
-        print("Cargando datos de entrenamiento desde carpetas...")
-        train_dataset = tf.keras.utils.image_dataset_from_directory(
-            directory=f'{data_dir}/train',
-            labels='inferred',
-            label_mode='categorical',
-            image_size=IMAGE_SIZE,
-            batch_size=BATCH_SIZE,
-            interpolation='nearest',
-            shuffle=True
-        )
-
-        print("\nCargando datos de validación desde carpetas...")
-        validation_dataset = tf.keras.utils.image_dataset_from_directory(
-            directory=f'{data_dir}/validation',
-            labels='inferred',
-            label_mode='categorical',
-            image_size=IMAGE_SIZE,
-            batch_size=BATCH_SIZE,
-            interpolation='nearest',
-            shuffle=False
-        )
-
-        # Aplicar la transformada de wavelet a los datasets
-        def preprocess_with_wavelet(image, label):
-            wavelet_image = tf.numpy_function(
-                func=apply_wavelet_transform,
-                inp=[image],
-                Tout=tf.float32
-            )
-            # Normalizar los coeficientes y redimensionar.
-            wavelet_image = tf.expand_dims(wavelet_image, axis=-1)
-            wavelet_image = tf.image.resize(wavelet_image, (112, 112))
-            wavelet_image.set_shape([112, 112, 1])
-            return wavelet_image / 255.0, label
-
-        train_dataset = train_dataset.map(preprocess_with_wavelet)
-        validation_dataset = validation_dataset.map(preprocess_with_wavelet)
-
-        return train_dataset, validation_dataset, True
-
+        df = pd.read_csv(file_path)
+        # La última columna es la etiqueta de clase
+        labels = df.iloc[:, -1]
+        data = df.iloc[:, :-1]
+        return data, labels
+    except FileNotFoundError:
+        print(f"Error: El archivo {file_path} no se encontró.")
+        return None, None
     except Exception as e:
-        print(f"❌ Error al cargar el dataset. Error: {e}")
-        return None, None, False
+        print(f"❌ Error al cargar el archivo {file_path}: {e}")
+        return None, None
 
-# --- 3. CONSTRUIR Y ENTRENAR EL MODELO DE PREENTRENAMIENTO ---
-def build_and_train_wavelet_model(train_ds, validation_ds):
-    """
-    Construye y entrena un modelo simple para datos de wavelet.
-    """
-    print("\n--- CONSTRUYENDO MODELO DE PREENTRENAMIENTO CON WAVELET ---")
+def build_model(input_shape, num_classes):
+    """Construye un modelo básico para la clasificación de series de tiempo."""
     model = Sequential([
-        # Corregimos la forma de entrada para que coincida con la imagen de wavelet
-        Conv2D(32, (3, 3), activation='relu', input_shape=(112, 112, 1)),
-        MaxPooling2D((2, 2)),
-        Conv2D(64, (3, 3), activation='relu'),
-        MaxPooling2D((2, 2)),
+        # Capas para extraer características de la señal
+        Conv1D(filters=64, kernel_size=5, activation='relu', input_shape=input_shape),
+        MaxPooling1D(pool_size=2),
+        Dropout(0.3),
+        
+        Conv1D(filters=128, kernel_size=5, activation='relu'),
+        MaxPooling1D(pool_size=2),
+        Dropout(0.3),
+        
+        # Aplanar para la capa densa
         Flatten(),
-        Dense(128, activation='relu'),
-        Dense(NUM_CLASSES, activation='softmax')
+        
+        # Capas densas para la clasificación
+        Dense(100, activation='relu'),
+        Dropout(0.5),
+        Dense(num_classes, activation='softmax')
     ])
     
     model.compile(optimizer='adam',
-                  loss='categorical_crossentropy',
+                  loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
-    model.summary()
-
-    print("\n--- INICIANDO ENTRENAMIENTO DEL MODELO WAVELET ---")
-    model.fit(
-        train_ds,
-        epochs=EPOCHS,
-        validation_data=validation_ds
-    )
-
-    # Guardar el modelo pre-entrenado
-    model_path = 'modelo_preentrenado_wavelet.h5'
-    model.save(model_path)
-    print(f"\n✅ Modelo pre-entrenado guardado como '{model_path}'.")
+    
     return model
 
-if __name__ == '__main__':
-    train_ds, validation_ds, data_loaded = load_and_preprocess_data_with_wavelet()
+def train_and_evaluate(X_train, y_train, X_val, y_val, model, model_name):
+    """Entrena y evalúa el modelo, guardando el mejor resultado."""
+    print(f"\n--- Entrenando el modelo: {model_name} ---")
     
-    if data_loaded:
-        build_and_train_wavelet_model(train_ds, validation_ds)
+    # Normalizar los datos
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_val_scaled = scaler.transform(X_val)
+    
+    # Reshape para que coincida con la entrada del modelo Conv1D
+    X_train_reshaped = X_train_scaled.reshape(X_train_scaled.shape[0], X_train_scaled.shape[1], 1)
+    X_val_reshaped = X_val_scaled.reshape(X_val_scaled.shape[0], X_val_scaled.shape[1], 1)
+    
+    # Definir el callback para guardar el mejor modelo
+    checkpoint = ModelCheckpoint(
+        filepath=f'best_model_{model_name}.keras',
+        monitor='val_accuracy',
+        verbose=1,
+        save_best_only=True,
+        mode='max'
+    )
+    
+    # Entrenar el modelo
+    history = model.fit(
+        X_train_reshaped, y_train,
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        validation_data=(X_val_reshaped, y_val),
+        callbacks=[checkpoint]
+    )
+    
+    return history
+
+def main():
+    """Función principal para cargar, entrenar y evaluar los modelos."""
+    # --- Modelo para PTBDB (Normal/Anormal) ---
+    data_ptbdb_normal, labels_ptbdb_normal = load_data(RUTA_PTBDB_NORMAL)
+    data_ptbdb_abnormal, labels_ptbdb_abnormal = load_data(RUTA_PTBDB_ABNORMAL)
+
+    if data_ptbdb_normal is not None and data_ptbdb_abnormal is not None:
+        X_ptbdb = pd.concat([data_ptbdb_normal, data_ptbdb_abnormal]).values
+        y_ptbdb = pd.concat([labels_ptbdb_normal, labels_ptbdb_abnormal]).values
+        
+        X_train_ptbdb, X_val_ptbdb, y_train_ptbdb, y_val_ptbdb = train_test_split(
+            X_ptbdb, y_ptbdb, test_size=0.2, random_state=42
+        )
+        
+        input_shape_ptbdb = (X_ptbdb.shape[1], 1)
+        model_ptbdb = build_model(input_shape_ptbdb, NUM_CLASSES_PTBDB)
+        history_ptbdb = train_and_evaluate(X_train_ptbdb, y_train_ptbdb, X_val_ptbdb, y_val_ptbdb, model_ptbdb, "ptbdb")
+
+    # --- Modelo para MIT-BIH (Clases Múltiples) ---
+    data_mitbih_train, labels_mitbih_train = load_data(RUTA_MITBIH_TRAIN)
+    data_mitbih_test, labels_mitbih_test = load_data(RUTA_MITBIH_TEST)
+
+    if data_mitbih_train is not None and data_mitbih_test is not None:
+        X_mitbih_train = data_mitbih_train.values
+        y_mitbih_train = labels_mitbih_train.values
+        X_mitbih_test = data_mitbih_test.values
+        y_mitbih_test = labels_mitbih_test.values
+
+        input_shape_mitbih = (X_mitbih_train.shape[1], 1)
+        model_mitbih = build_model(input_shape_mitbih, NUM_CLASSES_MITBIH)
+        history_mitbih = train_and_evaluate(X_mitbih_train, y_mitbih_train, X_mitbih_test, y_mitbih_test, model_mitbih, "mitbih")
+
+if __name__ == "__main__":
+    main()
 
 
