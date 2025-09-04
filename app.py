@@ -81,9 +81,8 @@ def load_models():
 
     try:
         # Carga el modelo 1D para señales (Wavelet)
-        # Se usa 'best_model_ptbdb.keras' según tu indicación.
-        # Si prefieres usar el de MIT-BIH, cámbialo a 'best_model_mitbih.keras'.
-        models['signal_model'] = keras.models.load_model('best_model_ptbdb.keras')
+        # Se usa 'best_model_mitbih.keras' según tu indicación.
+        models['signal_model'] = keras.models.load_model('best_model_mitbih.keras')
         st.info("✅ Modelo de señales (1D) cargado.")
     except Exception as e:
         st.error(f"❌ Error al cargar el modelo de señales: {e}")
@@ -103,6 +102,21 @@ def preprocess_image(image_bytes, img_size=(224, 224)):
     except Exception as e:
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
+
+def generate_simulated_signal(signal_type='normal', length=188):
+    """
+    Genera una señal de ECG simulada.
+    """
+    t = np.linspace(0, 1, length)
+    if signal_type == 'normal':
+        # Simulación de una señal normal
+        signal = np.sin(2 * np.pi * 5 * t) + 0.5 * np.sin(2 * np.pi * 10 * t) + np.random.randn(length) * 0.1
+    elif signal_type == 'abnormal':
+        # Simulación de una señal con arritmia
+        signal = np.sin(2 * np.pi * 15 * t) + 0.8 * np.sin(2 * np.pi * 25 * t) + np.random.randn(length) * 0.2
+    
+    # Redimensiona para un modelo Conv1D
+    return np.expand_dims(signal, axis=-1)
 
 def preprocess_signal(file_bytes):
     """
@@ -199,6 +213,11 @@ with col1:
     
     uploaded_file = st.file_uploader("Sube un archivo ECG", type=['png', 'jpg', 'jpeg', 'csv'])
     url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
+    
+    st.subheader("O simular señal")
+    simulate_signal_type = st.selectbox("Elige el tipo de señal a simular:", ['normal', 'abnormal'])
+    simulate_button = st.button("Simular Señal de ECG")
+    
     analyze_button = st.button("Analizar")
 
     if 'processed' not in st.session_state:
@@ -274,6 +293,26 @@ with col1:
                         st.success("Procesamiento completado!")
                     else:
                         st.session_state['processed'] = False
+    
+    if simulate_button:
+        models = load_models()
+        if 'signal_model' not in models:
+            st.error("No se pudo cargar el modelo de señales. Por favor, asegúrate de que el archivo exista.")
+        else:
+            with st.spinner("Generando y procesando señal simulada..."):
+                data_for_prediction = generate_simulated_signal(signal_type=simulate_signal_type)
+                data_for_prediction_reshaped = data_for_prediction.reshape(1, -1, 1)
+                
+                prediction = models['signal_model'].predict(data_for_prediction_reshaped)
+                results = interpret_model_output(prediction, 'signal')
+                
+                # Guarda la señal simulada en la sesión para poder mostrarla
+                st.session_state['processed'] = True
+                st.session_state['results'] = results
+                st.session_state['simulated_signal'] = data_for_prediction_reshaped[0]
+                
+                st.success("Simulación y procesamiento completado!")
+
 
 with col2:
     if 'last_uploaded_file' in st.session_state and st.session_state['last_uploaded_file'] is not None:
@@ -286,6 +325,7 @@ with col2:
         st.subheader("Resultados del análisis:")
         results = st.session_state['results']
         
+        # Muestra el heatmap solo si se procesó una imagen
         if 'heatmap_data' in results and results.get('heatmap_data') is not None:
             st.subheader("ECG Subido con Heatmap")
             uploaded_image_bytes = st.session_state['last_uploaded_file']
@@ -299,13 +339,22 @@ with col2:
             ax.imshow(heatmap_resized_for_display, cmap='hot', alpha=0.5)
             ax.set_axis_off()
             st.pyplot(fig)
+        
+        # Muestra la gráfica de la señal si se procesó una señal
+        elif 'simulated_signal' in st.session_state:
+            st.subheader("Señal de ECG Simulada")
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.plot(st.session_state['simulated_signal'])
+            ax.set_title("Gráfica de la Señal Simulada")
+            st.pyplot(fig)
+
         else:
-            st.warning("No se pudo generar el heatmap.")
+            st.warning("No se pudo generar el heatmap o la gráfica de la señal.")
 
         st.subheader("Diagnóstico")
         diagnostico = results['diagnostico']
         
-        if "infarto" in diagnostico.lower():
+        if "infarto" in diagnostico.lower() or "abnormal" in diagnostico.lower():
             st.error(f"⚠️ **DIAGNÓSTICO: {diagnostico}**")
         elif "normal" in diagnostico.lower():
             st.success(f"✅ {diagnostico}")
@@ -328,3 +377,4 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
+
