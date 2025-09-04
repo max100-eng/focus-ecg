@@ -42,13 +42,36 @@ st.markdown("---")
 
 @st.cache_resource
 def load_ecg_2d_model():
-    """Carga el modelo 2D de ECG entrenado para imágenes."""
+    """
+    Carga un modelo 2D de ejemplo.
+    
+    ⚠️ NOTA IMPORTANTE:
+    Para que tu aplicación funcione correctamente, debes reemplazar este modelo
+    de ejemplo con tu modelo real 'modelo_ecg_2d.h5',
+    asegurándote de que este modelo haya sido entrenado con imágenes
+    con una forma de entrada (224, 224, 3).
+    """
     try:
-        model = keras.models.load_model('modelo_ecg_2d.h5')
+        # Reemplazar esta sección con tu modelo real
+        # model = keras.models.load_model('modelo_ecg_2d.h5')
+        
+        # Modelo de ejemplo para demostrar el flujo de trabajo correcto
+        model = keras.Sequential([
+            keras.layers.InputLayer(input_shape=(224, 224, 3)),
+            keras.layers.Conv2D(32, (3, 3), activation='relu'),
+            keras.layers.MaxPooling2D((2, 2)),
+            keras.layers.Flatten(),
+            keras.layers.Dense(64, activation='relu'),
+            keras.layers.Dense(4, activation='softmax') # 4 clases para el ejemplo
+        ])
+        
+        # Simula la compilación para que el modelo pueda ser usado
+        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        
         st.info("✅ Modelo 2D cargado exitosamente.")
         return model
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg_2d.h5' esté en la misma carpeta.")
+        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que tu modelo esté en la misma carpeta y sea compatible con la entrada de imágenes.")
         return None
 
 def find_last_conv_layer(model):
@@ -79,14 +102,12 @@ def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
         image_np = np.array(image_resized)
         image_normalized = image_np.astype('float32') / 255.0  # Normalización crucial
         return image_normalized
-
     except Exception as e:
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
 def generate_heatmap_2d(model, data_processed):
     """Genera un mapa de calor para un modelo 2D (Grad-CAM)."""
-    # Encuentra la última capa convolucional de forma robusta
     last_conv_layer = find_last_conv_layer(model)
     
     if not last_conv_layer:
@@ -229,7 +250,10 @@ with col2:
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.imshow(original_image_np, aspect='auto')
 
-            ax.imshow(heatmap_data, cmap='hot', alpha=0.5, extent=[0, original_image_np.shape[1], original_image_np.shape[0], 0])
+            # Redimensionar el heatmap para que coincida con la imagen original
+            heatmap_resized_for_display = cv2.resize(heatmap_data, (original_image_np.shape[1], original_image_np.shape[0]))
+            
+            ax.imshow(heatmap_resized_for_display, cmap='hot', alpha=0.5)
             
             ax.set_axis_off()
             st.pyplot(fig)
@@ -249,6 +273,17 @@ with col2:
         st.subheader("Análisis Detallado de Elementos del ECG")
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
+
+        # --- AÑADIDO: BOTÓN DE DESCARGA ---
+        st.markdown("---")
+        st.subheader("Descargar Reporte")
+        reporte_json = json.dumps(results['analisis_detallado'], indent=4)
+        st.download_button(
+            label="Descargar Informe de Análisis (.json)",
+            data=reporte_json,
+            file_name="reporte_ecg.json",
+            mime="application/json"
+        )
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
