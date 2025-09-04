@@ -13,7 +13,7 @@ import json
 import random
 
 # Configuración de la página de Streamlit
-st.set_page_config(
+st.set_page_page_config(
     page_title="Focus ECG",
     page_icon="❤️",
     layout="wide"
@@ -42,36 +42,14 @@ st.markdown("---")
 
 @st.cache_resource
 def load_ecg_2d_model():
-    """
-    Carga un modelo 2D de ejemplo.
-    
-    ⚠️ NOTA IMPORTANTE:
-    Para que tu aplicación funcione correctamente, debes reemplazar este modelo
-    de ejemplo con tu modelo real 'modelo_ecg_2d.h5',
-    asegurándote de que este modelo haya sido entrenado con imágenes
-    con una forma de entrada (224, 224, 3).
-    """
+    """Carga un modelo 2D de ejemplo."""
     try:
-        # Reemplazar esta sección con tu modelo real
-        # model = keras.models.load_model('modelo_ecg_2d.h5')
-        
-        # Modelo de ejemplo para demostrar el flujo de trabajo correcto
-        model = keras.Sequential([
-            keras.layers.InputLayer(input_shape=(224, 224, 3)),
-            keras.layers.Conv2D(32, (3, 3), activation='relu'),
-            keras.layers.MaxPooling2D((2, 2)),
-            keras.layers.Flatten(),
-            keras.layers.Dense(64, activation='relu'),
-            keras.layers.Dense(4, activation='softmax') # 4 clases para el ejemplo
-        ])
-        
-        # Simula la compilación para que el modelo pueda ser usado
-        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-        
+        # Reemplaza esta línea con tu modelo real 'modelo_ecg_2d.h5'
+        model = keras.models.load_model('modelo_ecg_2d.h5')
         st.info("✅ Modelo 2D cargado exitosamente.")
         return model
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que tu modelo esté en la misma carpeta y sea compatible con la entrada de imágenes.")
+        st.error(f"❌ Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg_2d.h5' esté en la misma carpeta.")
         return None
 
 def find_last_conv_layer(model):
@@ -100,7 +78,7 @@ def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
         image = Image.open(image_bytes).convert('RGB')
         image_resized = image.resize(img_size)
         image_np = np.array(image_resized)
-        image_normalized = image_np.astype('float32') / 255.0  # Normalización crucial
+        image_normalized = image_np.astype('float32') / 255.0
         return image_normalized
     except Exception as e:
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
@@ -108,37 +86,41 @@ def process_uploaded_image_for_2d_model(image_bytes, img_size=(224, 224)):
 
 def generate_heatmap_2d(model, data_processed):
     """Genera un mapa de calor para un modelo 2D (Grad-CAM)."""
-    last_conv_layer = find_last_conv_layer(model)
-    
-    if not last_conv_layer:
-        st.warning("No se encontró una capa convolucional 2D para generar el heatmap.")
-        return None
-    
-    grad_model = tf.keras.models.Model(
-        [model.inputs], [last_conv_layer.output, model.output]
-    )
-    
-    with tf.GradientTape() as tape:
-        last_conv_layer_output, preds = grad_model(data_processed)
-        pred_index = tf.argmax(preds[0])
-        class_channel = preds[:, pred_index]
-    
-    grads = tape.gradient(class_channel, last_conv_layer_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    
-    last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
+    try:
+        last_conv_layer = find_last_conv_layer(model)
+        
+        if not last_conv_layer:
+            st.warning("No se encontró una capa convolucional 2D para generar el heatmap.")
+            return None
+        
+        grad_model = tf.keras.models.Model(
+            [model.inputs], [last_conv_layer.output, model.output]
+        )
+        
+        with tf.GradientTape() as tape:
+            last_conv_layer_output, preds = grad_model(data_processed)
+            pred_index = tf.argmax(preds[0])
+            class_channel = preds[:, pred_index]
+        
+        grads = tape.gradient(class_channel, last_conv_layer_output)
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        
+        last_conv_layer_output = last_conv_layer_output[0]
+        heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+        heatmap = tf.squeeze(heatmap)
 
-    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
-    heatmap_resized = cv2.resize(heatmap.numpy(), (224, 224))
-    
-    return heatmap_resized
+        heatmap = tf.maximum(heatmap, 0) / (tf.math.reduce_max(heatmap) + 1e-10) # Añadido 1e-10 para evitar división por cero
+        heatmap_resized = cv2.resize(heatmap.numpy(), (224, 224))
+        
+        return heatmap_resized
+    except Exception as e:
+        st.error(f"❌ Error al generar el mapa de calor: {e}")
+        return None
 
 def predict_with_2d_model(data, file_type):
     """Función principal que realiza la predicción con el modelo 2D."""
     ecg_model = load_ecg_2d_model()
-    if not ecg_model:
+    if ecg_model is None:
         return None
 
     try:
@@ -150,10 +132,10 @@ def predict_with_2d_model(data, file_type):
         
         st.info("Modelo cargado. Preprocesando y prediciendo...")
 
+        # 1. Realizar la predicción primero para 'llamar' al modelo.
         prediction = ecg_model.predict(data_for_prediction)
 
-        print("Predicción cruda del modelo:", prediction)
-
+        # 2. Luego, generar el mapa de calor.
         heatmap_data = generate_heatmap_2d(ecg_model, data_for_prediction)
 
         results = interpret_model_output(prediction)
@@ -250,7 +232,6 @@ with col2:
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.imshow(original_image_np, aspect='auto')
 
-            # Redimensionar el heatmap para que coincida con la imagen original
             heatmap_resized_for_display = cv2.resize(heatmap_data, (original_image_np.shape[1], original_image_np.shape[0]))
             
             ax.imshow(heatmap_resized_for_display, cmap='hot', alpha=0.5)
@@ -274,7 +255,6 @@ with col2:
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
 
-        # --- AÑADIDO: BOTÓN DE DESCARGA ---
         st.markdown("---")
         st.subheader("Descargar Reporte")
         reporte_json = json.dumps(results['analisis_detallado'], indent=4)
