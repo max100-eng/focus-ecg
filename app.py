@@ -36,7 +36,23 @@ custom_theme_script = """
       src: url('ruta/a/la/fuente/SourceSansPro-Regular.woff2') format('woff2');
       font-weight: normal;
       font-style: normal;
-      font-display: swap; 
+      font-display: swap;  /* Esto es lo que necesitas agregar */
+    }
+    
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('ruta/a/la/fuente/SourceSansPro-SemiBold.woff2') format('woff2');
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;  /* Y aquí también */
+    }
+    
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('ruta/a/la/fuente/SourceSansPro-Bold.woff2') format('woff2');
+      font-weight: bold;
+      font-style: normal;
+      font-display: swap;  /* Y en todas tus fuentes web */
     }
 </style>
 """
@@ -44,29 +60,7 @@ st.markdown(custom_theme_script, unsafe_allow_html=True)
 
 # Título de la aplicación
 st.title("❤️ Focus ECG")
-@font-face {
-  font-family: 'Source Sans Pro';
-  src: url('ruta/a/la/fuente/SourceSansPro-Regular.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap; /* Esto es lo que necesitas agregar */
-}
-
-@font-face {
-  font-family: 'Source Sans Pro';
-  src: url('ruta/a/la/fuente/SourceSansPro-SemiBold.woff2') format('woff2');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap; /* Y aquí también */
-}
-
-@font-face {
-  font-family: 'Source Sans Pro';
-  src: url('ruta/a/la/fuente/SourceSansPro-Bold.woff2') format('woff2');
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap; /* Y en todas tus fuentes web */
-}
+st.markdown("---")
 
 ## Funciones del modelo y preprocesamiento
 
@@ -141,7 +135,7 @@ def generate_heatmap_2d(model, data_processed):
         heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
         heatmap = tf.squeeze(heatmap)
 
-        heatmap = tf.maximum(heatmap, 0) / (tf.math.reduce_max(heatmap) + 1e-10) # Añadido 1e-10 para evitar división por cero
+        heatmap = tf.maximum(heatmap, 0) / (tf.math.reduce_max(heatmap) + 1e-10)
         heatmap_resized = cv2.resize(heatmap.numpy(), (224, 224))
         
         return heatmap_resized
