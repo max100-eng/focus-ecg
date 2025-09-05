@@ -103,7 +103,7 @@ def preprocess_image(image_bytes, img_size=(224, 224)):
         st.error(f"❌ Error en el procesamiento de la imagen: {e}. Asegúrate de que la imagen sea un ECG claro.")
         return None
 
-def generate_simulated_signal(signal_type='normal', length=188):
+def generate_simulated_signal(signal_type='normal', length=5504):
     """
     Genera una señal de ECG simulada.
     """
@@ -126,9 +126,9 @@ def preprocess_signal(file_bytes):
         df = pd.read_csv(file_bytes)
         # Asume que la última columna es la etiqueta y la excluye
         signal = df.iloc[:, :-1].values.flatten()
-        # Asegura que la longitud de la señal sea la esperada por el modelo (ej. 188 para PTBDB)
-        if signal.shape[0] != 188:
-            st.warning(f"La señal tiene una longitud de {signal.shape[0]}, pero el modelo espera 188.")
+        # Asegura que la longitud de la señal sea la esperada por el modelo (5504 puntos)
+        if signal.shape[0] != 5504:
+            st.warning(f"La señal tiene una longitud de {signal.shape[0]}, pero el modelo espera 5504.")
             return None
         
         signal_processed = signal.astype('float32')
