@@ -1,0 +1,5 @@
+*.h5 filter=lfs diff=lfs merge=lfs -text
+signal_ecg_archive/mitbih_train.csv filter=lfs diff=lfs merge=lfs -text
+modelo_ecg_2d.h5 filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+signal_ecg_archive/*.csv filter=lfs diff=lfs merge=lfs -text

@@ -76,6 +76,8 @@ def load_models():
         # Se usa 'modelo_ecg_2d.h5' según tu indicación.
         models['image_model'] = keras.models.load_model('modelo_ecg_2d.h5')
         st.info("✅ Modelo de imágenes (2D) cargado.")
+        # AÑADE ESTA LÍNEA AQUÍ
+        st.code(models['image_model'].summary(), language="text")
     except Exception as e:
         st.error(f"❌ Error al cargar el modelo de imágenes: {e}")
 
@@ -139,11 +141,19 @@ def preprocess_signal(file_bytes):
         return None
 
 def find_last_conv_layer(model):
-    """Encuentra la última capa convolucional 2D del modelo."""
-    for layer in reversed(model.layers):
-        if "Conv2D" in str(type(layer)):
-            return layer
-    return None
+    """Encuentra la última capa convolucional 2D del modelo VGG16."""
+    try:
+        # Busca la capa VGG16 dentro del modelo principal
+        vgg16_layer = model.get_layer('vgg16')
+        
+        # Ahora, busca la última capa convolucional dentro de VGG16
+        for layer in reversed(vgg16_layer.layers):
+            if "Conv2D" in str(type(layer)):
+                return layer
+        return None
+    except Exception as e:
+        st.error(f"❌ Error al encontrar la capa VGG16: {e}")
+        return None
 
 def generate_heatmap_2d(model, data_processed):
     """Genera un mapa de calor para un modelo 2D (Grad-CAM)."""
@@ -263,6 +273,8 @@ with col1:
                         if 'image_model' in models:
                             data_for_prediction = preprocess_image(source_file)
                             if data_for_prediction is not None:
+                                # AÑADE ESTA LÍNEA AQUÍ
+                                st.write(f"Forma de la imagen procesada: {data_for_prediction.shape}")
                                 prediction = models['image_model'].predict(data_for_prediction)
                                 heatmap_data = generate_heatmap_2d(models['image_model'], data_for_prediction)
                                 results = interpret_model_output(prediction, 'image')
@@ -276,7 +288,7 @@ with col1:
                         if 'signal_model' in models:
                             data_for_prediction = preprocess_signal(source_file)
                             if data_for_prediction is not None:
-                                data_for_prediction = data_for_prediction.reshape(1, -1, 1) 
+                                data_for_prediction = data_for_prediction.reshape(1, -1, 1)  
                                 prediction = models['signal_model'].predict(data_for_prediction)
                                 results = interpret_model_output(prediction, 'signal')
                             else:
@@ -377,4 +389,3 @@ with col2:
     else:
         st.subheader("Resultados del análisis:")
         st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
-
