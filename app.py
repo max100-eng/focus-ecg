@@ -4,41 +4,37 @@ import numpy as np
 from PIL import Image
 import io
 import matplotlib.pyplot as plt
-import pandas as pd # Importa pandas para la tabla de intervalos
+import pandas as pd
 import cv2
+import os
 
-# --- Cargar modelos ---
+# --- Cargar ambos modelos ---
 @st.cache_resource
 def load_models():
+    # Cargar el modelo de imágenes
     model_2d_path = "modelo_ecg_2d.h5"
     try:
         model_2d = tf.keras.models.load_model(model_2d_path)
         st.success("✅ Modelo de imágenes (2D) cargado exitosamente.")
         return model_2d
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo de imágenes (2D): [Errno 2] No such file or directory: '{model_2d_path}'. Asegúrate de que el archivo esté en la misma carpeta.")
+        st.error(f"❌ Error al cargar el modelo de imágenes (2D): {e}")
+        st.info("La clasificación visual no estará disponible.")
         return None
+
+# Importar el script de análisis de señales
+try:
+    from entrenar_modelo_wavelet import analyze_ecg_from_image_path
+    st.success("✅ Modelo de análisis de señales (Wavelet) cargado.")
+except ImportError:
+    st.error("❌ Error: No se encontró el script 'entrenar_modelo_wavelet.py'. Asegúrate de que esté en la misma carpeta.")
+    analyze_ecg_from_image_path = None
 
 model_2d = load_models()
 
 # --- Funciones de análisis y preprocesamiento ---
-def simulate_ecg_analysis():
-    """
-    Simula el análisis de los intervalos y métricas del ECG.
-    """
-    return {
-        "heartRate": 72,
-        "autoDiagnosis": "Ritmo Sinusal Normal",
-        "ecgIntervals": [
-            {"interval": "PR", "duration": 160, "normalRange": "120-200"},
-            {"interval": "QRS", "duration": 90, "normalRange": "80-120"},
-            {"interval": "QT", "duration": 380, "normalRange": "350-440"},
-            {"interval": "QTc", "duration": 420, "normalRange": "340-440"}
-        ]
-    }
-
-def preprocess_image(image_data):
-    """Carga y preprocesa una imagen de ECG para el modelo desde datos binarios."""
+def preprocess_image_for_model(image_data):
+    """Carga y preprocesa una imagen de ECG para el modelo de imágenes (2D)."""
     try:
         image = Image.open(io.BytesIO(image_data)).convert("RGB")
         image = image.resize((224, 224))
@@ -52,7 +48,6 @@ def preprocess_image(image_data):
 
 def generate_ecg_graph():
     """Genera un gráfico simulado de un trazado de ECG."""
-    # Simula un trazado de onda de ECG (P, QRS, T)
     t = np.linspace(0, 5, 500)
     p_wave = 0.1 * np.exp(-100 * (t - 0.1)**2)
     qrs_complex = -0.6 * np.exp(-1000 * (t - 0.2)**2) + 1.2 * np.exp(-1000 * (t - 0.25)**2) - 0.2 * np.exp(-1000 * (t - 0.3)**2)
@@ -82,40 +77,80 @@ def main():
     if uploaded_file is not None:
         st.write("---")
         st.subheader("Imagen subida")
-        
         image_data = uploaded_file.getvalue()
         st.image(image_data, caption=uploaded_file.name, use_container_width=True)
         
-        # Simular que el modelo existe para mostrar la interfaz
+        st.write("---")
+        st.subheader("Resultados del análisis")
+        
+        # --- 1. Análisis por el modelo de Imágenes (VGG16) ---
+        st.markdown("### 👁️ Clasificación Visual (por `modelo_ecg_2d.h5`)")
         if model_2d:
-            st.write("---")
-            st.subheader("Resultados del análisis:")
-            
-            # Obtener datos simulados de análisis de intervalos
-            analysis_results = simulate_ecg_analysis()
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label="Ritmo Cardíaco (bpm)", value=analysis_results["heartRate"])
-            with col2:
-                st.metric(label="Diagnóstico Automático", value=analysis_results["autoDiagnosis"])
+            try:
+                # Preprocesar la imagen para el modelo de clasificación
+                data_for_prediction = preprocess_image_for_model(image_data)
                 
-            st.warning("⚠️ Recuerda: Estos resultados son una **simulación**. El análisis de ritmo e intervalos requiere algoritmos complejos que no están presentes en este modelo de clasificación de imágenes. Consulta a un profesional de la salud.")
-            
-            st.write("### Datos Clave del ECG (Simulado)")
-            
-            df = pd.DataFrame(analysis_results["ecgIntervals"])
-            st.dataframe(df.set_index('interval'))
-            
-            # --- Generar el gráfico del trazado del ECG ---
-            st.write("---")
-            st.write("### Trazado ECG Simulado")
-            st.write("Este gráfico representa un trazado de ECG simulado para fines de demostración.")
-            
-            fig = generate_ecg_graph()
-            st.pyplot(fig)
-            
-            st.success("Análisis completado!")
+                # Realizar la predicción
+                predictions = model_2d.predict(data_for_prediction)
+                predicted_class_index = np.argmax(predictions[0])
+                
+                # Simular la etiqueta de diagnóstico (ejemplo)
+                # En tu código real, mapearías el índice a una etiqueta de clase
+                class_labels = ["Ritmo Normal", "Arritmia"]
+                visual_diagnosis = class_labels[predicted_class_index]
+                
+                st.info(f"El modelo de imágenes clasifica el ECG como: **{visual_diagnosis}**")
+                
+                st.write("---")
+            except Exception as e:
+                st.error(f"❌ Error al ejecutar el modelo de imágenes: {e}")
+        else:
+            st.info("El modelo de imágenes no está disponible. No se puede realizar la clasificación visual.")
+        
+        # --- 2. Análisis por el modelo de Señales (Wavelet) ---
+        st.markdown("### 📈 Análisis Numérico (por tu modelo de `wavelet`)")
+        if analyze_ecg_from_image_path:
+            try:
+                # Guardar la imagen temporalmente para que tu modelo la lea
+                temp_image_path = "temp_ecg_image.jpg"
+                with open(temp_image_path, "wb") as f:
+                    f.write(image_data)
+                
+                # Llamar a la función de análisis de tu modelo de wavelet
+                analysis_results = analyze_ecg_from_image_path(temp_image_path)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(label="Ritmo Cardíaco (bpm)", value=analysis_results.get("heartRate", "N/A"))
+                with col2:
+                    st.metric(label="Diagnóstico Automático", value=analysis_results.get("autoDiagnosis", "N/A"))
+                    
+                st.write("#### Datos Clave del ECG")
+                ecg_intervals = analysis_results.get("ecgIntervals")
+                if ecg_intervals:
+                    df = pd.DataFrame(ecg_intervals)
+                    st.dataframe(df.set_index('interval'))
+                else:
+                    st.info("No se encontraron datos de intervalos en los resultados del modelo.")
+                
+                # Eliminar la imagen temporal
+                os.remove(temp_image_path)
+
+            except Exception as e:
+                st.error(f"❌ Error al ejecutar tu modelo de análisis de señales: {e}")
+                st.info("No se pudo obtener el análisis numérico. Comprueba tu script `entrenar_modelo_wavelet.py`.")
+        else:
+            st.info("El modelo de análisis de señales no está disponible. No se puede realizar el análisis numérico.")
+        
+        # --- Gráfico simulado del trazado ECG ---
+        st.write("---")
+        st.markdown("### 📊 Trazado ECG Simulado")
+        st.write("Este gráfico representa un trazado de ECG simulado para fines de demostración.")
+        fig = generate_ecg_graph()
+        st.pyplot(fig)
+        
+        st.success("Análisis completo. Consulta ambos resultados.")
+        st.warning("⚠️ **Aviso Importante**: Esta es una herramienta experimental. Consulta siempre a un profesional de la salud para un diagnóstico médico.")
 
 # --- Ejecutar la aplicación ---
 if __name__ == "__main__":
