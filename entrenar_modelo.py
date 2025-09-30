@@ -166,6 +166,7 @@ if __name__ == '__main__':
     if data_loaded:
         build_and_train_model(train_ds, validation_ds)
 print(f"\n¡Modelo guardado exitosamente en: {model_save_path}!")
+<<<<<<< HEAD
 print("Ahora puedes usar este archivo en tu aplicación de Streamlit.")
 
 EPOCHS = 10
@@ -308,3 +309,4 @@ if __name__ == '__main__':
     if data_loaded:
         build_and_train_model(train_ds, validation_ds)
 
+=======print("Ahora puedes usar este archivo en tu aplicación de Streamlit.")
