@@ -28,7 +28,7 @@ st.markdown('<p class="big-font">Focus-ECG: Análisis, Predicción y Simulación
 
 # --- CONFIGURACIÓN DE LA API DE R ---
 # NOTA IMPORTANTE: Debes reemplazar esta URL por tu URL de API de Plumber desplegada.
-API_URL = "https://tu-url-de-api-desplegada.com/prediccion_ecg"  
+API_URL = "https://2ldfc4-massimo-barbetta.shinyapps.io/focus-ecg-api/prediccion_ecg"   
 st.write("Herramienta de Diagnóstico Cardiovascular.")
 
 # --- ESTRUCTURA PRINCIPAL DE PESTAÑAS ---
