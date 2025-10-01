@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -14,8 +13,15 @@ import requests
 from io import BytesIO
 import json
 import random
-import cv2
-from PIL import Image
+from tensorflow import keras # Se necesita para load_model
+
+# Importa la función de simulación desde el archivo ecg_simulator.py
+from ecg_simulator import generate_ecg
+# 1. Configuración de la API DE PLUMBER EN R (DEBES REEMPLAZAR ESTA URL)
+# Esta es la URL pública que obtuviste después de desplegar tu API de Plumber en R.
+API_URL_R = "https://tu-url-de-api-desplegada.com/prediccion_ecg" 
+# NOTA: Asegúrate de que el path del endpoint (/prediccion_ecg) sea el correcto.
+
 
 # Streamlit page configuration (title, layout, and custom theme)
 st.set_page_config(
@@ -101,38 +107,19 @@ st.markdown("---")
 
 # --- FUNCIONES DE ANÁLISIS ---
 
->>>>>>> 9a82aa886352dc1424847d430e42b17b45cb0b59
 @st.cache_resource
 def load_analysis_models():
     models = {}
     try:
-<<<<<<< HEAD
+        # Se asume que este código es para el análisis de la señal
         models['mitbih'] = tf.keras.models.load_model("best_model_mitbih.keras")
         st.success("✅ Modelo MIT-BIH (best_model_mitbih.keras) cargado.")
     except Exception as e:
         st.error(f"❌ Error al cargar best_model_mitbih.keras: {e}")
         models['mitbih'] = None
-=======
-        model = keras.models.load_model('modelo_ecg.h5')
-        st.info("Modelo de TensorFlow cargado exitosamente.")
-        return model
-    except Exception as e:
-        st.error(f"Error al cargar el modelo: {e}. Asegúrate de que 'modelo_ecg.h5' esté en la misma carpeta y sea accesible.")
-        return None
-
-def analyze_ecg_details(ecg_signal):
-    """
-    Simula un análisis detallado de los elementos del ECG basado en datos numéricos.
-    Esta función también genera datos simulados para un heatmap.
-    """
-    # Valores aleatorios que simulan un análisis del modelo
-    pr_interval = random.uniform(0.12, 0.22)
-    qrs_duration = random.uniform(0.06, 0.15)
-    st_segment = random.uniform(-0.1, 0.2)
-    qt_interval = random.uniform(0.35, 0.50)
->>>>>>> 9a82aa886352dc1424847d430e42b17b45cb0b59
     
     try:
+        # Se asume que este código es para el análisis de la señal
         models['ptbdb'] = tf.keras.models.load_model("best_model_ptbdb.keras")
         st.success("✅ Modelo PTB-DB (best_model_ptbdb.keras) cargado.")
     except Exception as e:
@@ -157,7 +144,6 @@ def simulate_ecg_analysis():
         ]
     }
 
-<<<<<<< HEAD
 def generate_ecg_graph():
     """Genera un gráfico simulado de un trazado de ECG."""
     t = np.linspace(0, 5, 500)
@@ -176,84 +162,40 @@ def generate_ecg_graph():
     plt.tight_layout()
     return fig
 
-# --- Interfaz de Streamlit ---
-def main():
-    st.title("CardioSense")
-    st.subheader("Análisis de Electrocardiogramas (ECG) mediante IA")
-    
-    st.sidebar.title("Configuración")
-    st.sidebar.markdown("Sube una imagen de ECG para analizar.")
-    
-    uploaded_file = st.file_uploader("Sube una imagen de ECG...", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        st.write("---")
-        st.subheader("Imagen subida")
-        image_data = uploaded_file.getvalue()
-        st.image(image_data, caption=uploaded_file.name, use_container_width=True)
-        
-        st.write("---")
-        st.subheader("Resultados del análisis")
-        
-        # --- Análisis por los modelos de señales ---
-        st.markdown("### 📈 Diagnóstico basado en modelos de señales")
-        
-        if analysis_models['mitbih'] or analysis_models['ptbdb']:
+# --- FUNCIONES DE PREDICCIÓN CON EL MODELO DE R (PLUMBER) ---
+
+def predict_with_r_api(frec_cardiaca, var_rr):
+    """
+    Función que llama a la API de R (Plumber) para obtener una predicción
+    basada en métricas específicas.
+    """
+    datos_para_api = {
+        "frecuencia_cardiaca": frec_cardiaca,
+        "variabilidad_rr": var_rr
+    }
+
+    try:
+        # Intentamos hasta 3 veces con espera exponencial para evitar errores temporales de red
+        for i in range(3):
             try:
-                # Nota: Los modelos de señales esperan datos de señal 1D.
-                # Aquí, se simula el resultado del análisis
-                # porque la extracción de la señal a partir de la imagen es un paso complejo.
-                
-                # Simular la predicción de cada modelo
-                # En un caso real, aquí iría la lógica para pasar los datos al modelo
-                mitbih_prediction = np.random.rand(1, 5) # Simulación de la salida del modelo
-                ptbdb_prediction = np.random.rand(1, 2)  # Simulación de la salida del modelo
-                
-                # Mapear las predicciones a un diagnóstico legible
-                mitbih_diagnosis = ["Normal", "SVEB", "VEB", "Fusionado", "Desconocido"][np.argmax(mitbih_prediction)]
-                ptbdb_diagnosis = ["Normal", "Infarto de miocardio"][np.argmax(ptbdb_prediction)]
+                respuesta = requests.post(API_URL_R, json=datos_para_api, timeout=10)
+                respuesta.raise_for_status() # Lanza HTTPError para códigos de estado 4xx/5xx
+                return respuesta.json()
+            except requests.exceptions.RequestException as e:
+                if i < 2:
+                    st.warning(f"Reintentando la conexión con la API de R (Intento {i+2}/3)...")
+                    # Espera exponencial: 2, 4, 8 segundos
+                    plt.pause(2 ** (i + 1)) 
+                else:
+                    raise e # Si falla el último intento, lanza el error
+        
+    except requests.exceptions.RequestException as e:
+        st.error(f"⚠️ Error fatal al conectar/recibir respuesta de la API de R: {e}")
+        return None
+    except Exception as e:
+        st.error(f"⚠️ Error desconocido al procesar la respuesta de R: {e}")
+        return None
 
-                st.info(f"Diagnóstico MIT-BIH: **{mitbih_diagnosis}**")
-                st.info(f"Diagnóstico PTB-DB: **{ptbdb_diagnosis}**")
-
-                # Obtener datos simulados de análisis de intervalos
-                analysis_results = simulate_ecg_analysis()
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(label="Ritmo Cardíaco (bpm)", value=analysis_results["heartRate"])
-                with col2:
-                    st.metric(label="Diagnóstico Automático", value=analysis_results["autoDiagnosis"])
-                
-                st.write("#### Datos Clave del ECG (Simulado)")
-                df = pd.DataFrame(analysis_results["ecgIntervals"])
-                st.dataframe(df.set_index('interval'))
-    if eje_desviado_derecha:
-        reporte["Eje Cardíaco"] = "Desviado a la derecha"
-    elif eje_desviado_izquierda:
-        reporte["Eje Cardíaco"] = "Desviado a la izquierda"
-
-    # Determinar el diagnóstico final basado en las simulaciones
-    if "Supradesnivel" in reporte["Segmento ST"] and reporte["Onda Q"] == "Patológica":
-        diagnostico_final = "Infarto Agudo del Miocardio (IAM)"
-    elif "Infradesnivel" in reporte["Segmento ST"]:
-        diagnostico_final = "Angina de pecho"
-    elif "Ancho" in reporte["Duración QRS (s)"]:
-        diagnostico_final = "Bloqueo de Branca"
-    elif "Alargado" in reporte["Intervalo PR (s)"]:
-        diagnostico_final = "Bloqueo del Seno Atrial"
-    elif reporte["Ritmo"] == "Irregular":
-        diagnostico_final = "Arritmia"
-    else:
-        diagnostico_final = "Ritmo sinusal normal"
-
-    # --- SIMULACIÓN DEL HEATMAP ---
-    heatmap_data = np.random.rand(len(ecg_signal))
-    heatmap_data = np.convolve(heatmap_data, np.ones(5)/5, mode='same')
-    heatmap_data = (heatmap_data - heatmap_data.min()) / (heatmap_data.max() - heatmap_data.min())
-    # --- FIN SIMULACIÓN DEL HEATMAP ---
-
-    return {"diagnostico": diagnostico_final, "analisis_detallado": reporte, "heatmap_data": heatmap_data}
 
 # --- NUEVAS FUNCIONES PARA EL ANÁLISIS REAL ---
 
@@ -392,7 +334,10 @@ def predict_with_model(data, model, file_type):
         st.warning("El modelo no ha podido ser cargado. No se puede realizar la predicción.")
         return None
 # Carga del modelo global
-ecg_model = load_ecg_model()
+# NOTA: Tu código original no tiene una función load_ecg_model definida,
+# usa analysis_models que se cargó arriba. Lo dejo comentado para que lo revises.
+# ecg_model = load_ecg_model() 
+ecg_model = analysis_models['mitbih'] # Usamos el modelo MIT-BIH por defecto para esta función
 
 # --- DISEÑO DE LA APLICACIÓN DE UNA SOLA PÁGINA ---
 
@@ -413,8 +358,52 @@ with col1:
         </p>
         </div>
     """, unsafe_allow_html=True)
+    
+    # --- SECCIÓN DEL MODELO DE R (PLUMBER) ---
+    st.subheader("Análisis por Métricas (Modelo de R)")
+    st.write("Introduce las métricas clave para la predicción del modelo de R/Plumber.")
+    
+    frec_cardiaca = st.number_input(
+        "Frecuencia Cardíaca (lpm):", 
+        min_value=30.0, 
+        max_value=200.0, 
+        value=85.0, 
+        step=0.1,
+        key='frec_r',
+        help="Introduce la frecuencia cardíaca promedio en latidos por minuto."
+    )
+    
+    var_rr = st.number_input(
+        "Variabilidad RR (ms):", 
+        min_value=0.0, 
+        max_value=1.0, 
+        value=0.05, 
+        step=0.001,
+        key='var_r',
+        help="Introduce el valor de la variabilidad del intervalo R-R."
+    )
+    
+    if st.button("Predecir con Modelo de R", key='predict_r', type="secondary"):
+        with st.spinner('Contactando con la API de R...'):
+            r_prediction = predict_with_r_api(frec_cardiaca, var_rr)
 
-    st.subheader("Subir ECG")
+        if r_prediction is not None:
+            # Asumiendo que la API de R devuelve {'prediccion': [valor]} o similar
+            resultado_r = r_prediction.get('prediccion', ['N/A'])[0]
+
+            st.success(f"✅ Predicción de R Obtenida Exitosamente")
+            st.metric(
+                label="Diagnóstico (Modelo de R)", 
+                value=f"{resultado_r}",
+                delta="API Plumber"
+            )
+        else:
+            st.error("No se pudo obtener la predicción del modelo de R. Revisa la URL y el despliegue.")
+            
+    st.markdown("---")
+    # --- FIN SECCIÓN DEL MODELO DE R (PLUMBER) ---
+
+    st.subheader("Subir ECG para Análisis de Señal (Modelo de TensorFlow)")
     
     uploaded_file = st.file_uploader(
         "Sube un archivo ECG",
@@ -423,7 +412,7 @@ with col1:
     
     url_input = st.text_input("...o introduce la URL de una imagen", help="Pega una URL y presiona Enter")
     
-    analyze_button = st.button("Analizar")
+    analyze_button = st.button("Analizar Señal ECG")
 
     if analyze_button:
         source_file = None
@@ -541,28 +530,24 @@ with col2:
         else:
             st.warning(diagnostico)
             
-            except Exception as e:
-                st.error(f"❌ Error al ejecutar los modelos de análisis: {e}")
-                st.info("No se pudo obtener el análisis. Revisa los modelos de señales.")
-        else:
-            st.warning("⚠️ No se cargó ningún modelo de análisis. El diagnóstico no está disponible.")
-
-        # --- Gráfico simulado del trazado ECG ---
-        st.write("---")
-        st.markdown("### 📊 Trazado ECG Simulado")
-        st.write("Este gráfico representa un trazado de ECG simulado para fines de demostración.")
-        fig = generate_ecg_graph()
-        st.pyplot(fig)
-        
-        st.success("Análisis completo.")
-        st.warning("⚠️ **Aviso Importante**: Esta es una herramienta experimental. Consulta siempre a un profesional de la salud para un diagnóstico médico.")
-
-# --- Ejecutar la aplicación ---
-if __name__ == "__main__":
-    main()
+        st.write("#### Reporte Detallado")
         analisis_df = pd.DataFrame(results['analisis_detallado'].items(), columns=['Elemento', 'Estado'])
         st.table(analisis_df)
+
     else:
         st.subheader("Resultados del análisis:")
-        st.warning("Por favor, sube y procesa un archivo ECG para ver el informe.")
+        st.info("Sube un archivo o introduce métricas para comenzar el análisis.")
+        
+    # --- Gráfico simulado del trazado ECG (Mantenido) ---
+    st.write("---")
+    st.markdown("### 📊 Trazado ECG Simulado")
+    st.write("Este gráfico representa un trazado de ECG simulado para fines de demostración.")
+    fig = generate_ecg_graph()
+    st.pyplot(fig)
+    
+    st.warning("⚠️ **Aviso Importante**: Esta es una herramienta experimental. Consulta siempre a un profesional de la salud para un diagnóstico médico.")
 
+
+# --- Ejecutar la aplicación ---
+# La aplicación se ejecuta automáticamente al usar 'streamlit run'.
+# No se necesita el bloque if __name__ == "__main__": en un entorno Streamlit.
