@@ -16,7 +16,7 @@ import random
 from tensorflow import keras # Se necesita para load_model
 
 # Importa la función de simulación desde el archivo ecg_simulator.py
-from ecg_simulator import generate_ecg
+from generate_ecg import generate_ecg 
 # 1. Configuración de la API DE PLUMBER EN R (DEBES REEMPLAZAR ESTA URL)
 # Esta es la URL pública que obtuviste después de desplegar tu API de Plumber en R.
 API_URL_R = "https://maxxxi100-mi-api-ecg.hf.space/plumber/prediccion_ecg"
