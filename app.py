@@ -19,7 +19,7 @@ from tensorflow import keras # Se necesita para load_model
 from ecg_simulator import generate_ecg
 # 1. Configuración de la API DE PLUMBER EN R (DEBES REEMPLAZAR ESTA URL)
 # Esta es la URL pública que obtuviste después de desplegar tu API de Plumber en R.
-API_URL_R = "https://tu-url-de-api-desplegada.com/prediccion_ecg" 
+API_URL_R = "https://maxxxi100-mi-api-ecg.hf.space/plumber/prediccion_ecg"
 # NOTA: Asegúrate de que el path del endpoint (/prediccion_ecg) sea el correcto.
 
 
