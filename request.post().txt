@@ -1,0 +1,27 @@
+import requests
+import json
+
+# URL de la API. Debe incluir la ruta completa del endpoint.
+api_url = "https://tu-api.shinyapps.io/ruta-de-la-api/prediccion" 
+
+# Los datos de entrada deben ser un diccionario.
+datos_ecg = {
+    "frecuencia_cardiaca": 75,
+    "variabilidad_rr": 120
+}
+
+# La solicitud debe ser POST, no GET.
+try:
+    response = requests.post(api_url, json=datos_ecg)
+
+    if response.status_code == 200:
+        # La solicitud fue exitosa
+        resultado = response.json()
+        print("Predicción de la API:", resultado)
+    else:
+        # Hay un error diferente al 405
+        print(f"Error: {response.status_code}")
+        
+except requests.exceptions.RequestException as e:
+    # Error de conexión
+    print(f"Error de conexión con la API: {e}")
